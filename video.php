@@ -30,7 +30,7 @@ if($_GET['file'] or $_GET['filebase']){
 	header('HTTP/1.0 404 Not Found',true,404);
 }
 
-$q="select * from encodings where contentid=$contentid";
+$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
 if(! $_GET['allow_old']){
 	$q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 }
@@ -52,9 +52,9 @@ while($data=mysql_fetch_assoc($contentresult)){
 #	print $_GET['format'] ." ? " .$data['format']."\n";
 
 	if(array_key_exists('format',$_GET))
-		if($data['format']!=$_GET['format']) continue;
+		if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
 	if(array_key_exists($_GET,'need_mobile')){
-		print "checking mobile...\n";	
+		#print "checking mobile...\n";	
 		if($data['mobile']!=1) continue;
 	}
 	if(array_key_exists($_GET,'minbitrate'))	
