@@ -22,7 +22,7 @@ if($_GET['file'] or $_GET['filebase']){
 		header('HTTP/1.0 400 Bad Request',true,400);
 		exit;
 	}
-	$q="select * from idmapping where octopusid=$octid";
+	$q="select * from idmapping where octopus_id=$octid";
 	$result=mysql_query($q);
 	$idmappingdata=mysql_fetch_assoc($result);
 	$contentid=$idmappingdata['contentid'];
