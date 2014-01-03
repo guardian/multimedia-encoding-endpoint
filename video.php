@@ -53,21 +53,21 @@ while($data=mysql_fetch_assoc($contentresult)){
 
 	if(array_key_exists('format',$_GET))
 		if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
-	if(array_key_exists($_GET,'need_mobile')){
+	if(array_key_exists('need_mobile',$_GET)){
 		#print "checking mobile...\n";	
 		if($data['mobile']!=1) continue;
 	}
-	if(array_key_exists($_GET,'minbitrate'))	
+	if(array_key_exists('minbitrate',$_GET))	
 		if($data['vbitrate']<$_GET['minbitrate']) continue;
-	if(array_key_exists($_GET,'maxbitrate'))
+	if(array_key_exists('maxbitrate',$_GET))
 		if($data['vbitrate']>$_GET['maxbitrate']) continue;
-       if(array_key_exists($_GET,'minheight'))
+       if(array_key_exists('minheight',$_GET))
 	         if($data['frame_height']<$_GET['minheight']) continue;
-	if(array_key_exists($_GET,'maxheight'))
+	if(array_key_exists('maxheight',$_GET))
                 if($data['frame_height']>$_GET['maxheight']) continue;
-	if(array_key_exists($_GET,'minwidth'))
+	if(array_key_exists('minwidth',$_GET))
                 if($data['frame_width']<$_GET['minwidth']) continue;
-	if(array_key_exists($_GET,'maxwidth'))
+	if(array_key_exists('maxwidth',$_GET))
                 if($data['frame_width']>$_GET['maxwidth']) continue;
 	$data['url']=preg_replace("/\|/","",$data['url']);
 	header("Location: ".$data['url']);
