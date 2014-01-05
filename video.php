@@ -34,7 +34,8 @@ $q="select * from encodings left join mime_equivalents on (real_name=encodings.f
 if(! $_GET['allow_old']){
 	$q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 }
-$q=$q." order by lastupdate desc";
+#$q=$q." order by lastupdate desc";
+$q=$q." order by lastupdate desc, vbitrate desc";
 
 $contentresult=mysql_query($q);
 if(!$contentresult){
