@@ -71,7 +71,14 @@ while($data=mysql_fetch_assoc($contentresult)){
 	if(array_key_exists('maxwidth',$_GET))
                 if($data['frame_width']>$_GET['maxwidth']) continue;
 	$data['url']=preg_replace("/\|/","",$data['url']);
-	header("Location: ".$data['url']);
+
+	if($_GET['poster']){	#set the poster=arg to anything to get poster image instead
+		preg_match("/^(.*)\.[^\.]+$/",$data['url'],$matches);
+		$posterurl=$matches[1]."_poster.jpg";
+		header("Location: ".$posterurl);
+	} else {
+		header("Location: ".$data['url']);
+	}
 	exit;
 }
 print "No content found.\n";
