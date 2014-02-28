@@ -35,7 +35,7 @@ if(! $_GET['allow_old']){
 	$q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 }
 #$q=$q." order by lastupdate desc";
-$q=$q." order by lastupdate desc,vbitrate desc";
+$q=$q." order by vbitrate desc,lastupdate desc";
 
 $contentresult=mysql_query($q);
 if(!$contentresult){
