@@ -34,19 +34,23 @@ if($_GET['file'] or $_GET['filebase']){
 #The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have multiple versions.
 #Versions can have subtly different bitrates AND arrive at different times, so just searching versions with a sort order can return old results no matter what.
 #So, the first step is to find the most recent FCS ID and then search with that
-$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc limit 0,1";
+$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
 $fcsresult=mysql_query($q);
 if(!$fcsresult){
 	header("HTTP/1.0 500 Database query error");
 	exit;
 }
-$fcsdata=mysql_fetch_assoc($fcsresult);
-$fcsid=$fcsdata['fcs_id'];
-
+while($fcsdata=mysql_fetch_assoc($fcsresult)){
+	if($fcsdata['fcs_id']){
+		$fcsid=$fcsdata['fcs_id'];
+		break;
+	}
+}
 #Step 2.
 #Look for videos ordered by descending bitrate that belong to the given ID
 #If none are found, AND we have allow_old set, then re-do the search over everything (and potentially return an old result)
-$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
+if($fcsid){
+	$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
 
 #$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
 #if(! $_GET['allow_old']){
@@ -55,16 +59,17 @@ $q="select * from encodings left join mime_equivalents on (real_name=encodings.f
 #$q=$q." order by lastupdate desc";
 #$q=$q." order by vbitrate desc,lastupdate desc";
 
-$contentresult=mysql_query($q);
-if(!$contentresult){
-	header("HTTP/1.0 500 Database query error");
-	exit;
-	#print "unable to run query $q";
+	$contentresult=mysql_query($q);
+	if(!$contentresult){
+		header("HTTP/1.0 500 Database query error");
+		exit;
+		#print "unable to run query $q";
+	}
 }
 
 #fall back to the old behaviour if nothing was found. this usually means an update is in progress.
 #allow_old will enable this behaviour in the next version
-if(mysql_num_rows($contentresult)==0){
+if($fcsid="" or mysql_num_rows($contentresult)==0){
 #	if(! $_GET['allow_old']){
 #		header("HTTP/1.0 404 No content found");
 #		exit;
