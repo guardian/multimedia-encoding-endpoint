@@ -43,16 +43,20 @@ if(!$fcsresult){
 	exit;
 }
 while($fcsdata=mysql_fetch_assoc($fcsresult)){
-	if($fcsdata['fcs_id']){
+	if($fcsdata['fcs_id'] and strlen($fcsdata['fcs_id'])>1){
 		$fcsid=$fcsdata['fcs_id'];
+#		print "got fcsid $fcsid";
 		break;
 	}
 }
+#die("testing, content id=$contentid fcs id =$fcsid");
+
 #Step 2.
 #Look for videos ordered by descending bitrate that belong to the given ID (if we got one). If not then fall through.
 #If none are found, AND we have allow_old set, then re-do the search over everything (and potentially return an old result)
-if($fcsid){
+if($fcsid and $fcsid!=''){
 	$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
+#	print "searching by fcsid $fcsid...\n";
 
 	$contentresult=mysql_query($q);
 	if(!$contentresult){
@@ -60,22 +64,31 @@ if($fcsid){
 		exit;
 		#print "unable to run query $q";
 	}
+#	die("testing");
 }
 
 #Step 3.
 #fall back to the old behaviour if nothing was found. this usually means an update is in progress.
 #allow_old will enable this behaviour in the next version
-if($fcsid="" or mysql_num_rows($contentresult)==0){
+if($fcsid=='' or mysql_num_rows($contentresult)==0){
 #	if(! $_GET['allow_old']){
 #		header("HTTP/1.0 404 No content found");
 #		exit;
 #	}
+#	print "old search fallback...\n";
 	$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
 	if(! $_GET['allow_old']){
 	       $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 	}
-	$q=$q." order by lastupdate desc";
+	#$q=$q." order by lastupdate desc";
 	$q=$q." order by vbitrate desc,lastupdate desc";
+	
+        $contentresult=mysql_query($q);
+        if(!$contentresult){
+                header("HTTP/1.0 500 Database query error");
+                exit;
+                #print "unable to run query $q";
+        }
 }
 
 
