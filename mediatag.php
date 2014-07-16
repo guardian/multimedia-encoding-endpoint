@@ -1,4 +1,9 @@
 <?php
+function output_supplementary_headers()
+{
+header("Access-Control-Allow-Origin: *");
+}
+
 #This script looks up a video in the interactivepublisher database and returns a redirect if it can be found
 
 $dbh=mysql_connect('gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com','***REMOVED***','***REMOVED***');

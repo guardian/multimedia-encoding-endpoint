@@ -126,13 +126,14 @@ while($data=mysql_fetch_assoc($contentresult)){
 	$data['url']=preg_replace("/\|/","",$data['url']);
 
 	output_supplementary_headers();
+	header("Content-Type: text/plain");
 
 	if($_GET['poster']){	#set the poster=arg to anything to get poster image instead
 		preg_match("/^(.*)\.[^\.]+$/",$data['url'],$matches);
 		$posterurl=$matches[1]."_poster.jpg";
-		header("Location: ".$posterurl);
+		print $posterurl;
 	} else {
-		header("Location: ".$data['url']);
+		print $data['url'];
 	}
 	exit;
 }
