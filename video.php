@@ -1,5 +1,5 @@
 <?php
-require 'vendor/autoload.php';
+require '/opt/vendor/autoload.php';
 use Aws\Sns\SnsClient;
 $snsConfig = array(
 	'region' => 'eu-west-1',
@@ -12,12 +12,17 @@ function report_error($errordetails)
 {
 $errordetails['hostname'] = $_SERVER['HOST_NAME'];
 $sns = $GLOBALS['sns'];
+try{
 $result = $sns->publish(array(
 	'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
 	'Message' => json_encode($errordetails),
 	'Subject' => "Endpoint Error",
 	'MessageStructure' => 'string',
 ));
+
+} catch(Exception $e) {
+	error_log("Unable to notify sns: ".$e->getMessage()."\n");
+}
 }
 
 function output_supplementary_headers()
