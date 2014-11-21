@@ -1,4 +1,6 @@
 <?php
+require 'vendor/autoload.php';
+
 function output_supplementary_headers()
 {
 header("Access-Control-Allow-Origin: *");
