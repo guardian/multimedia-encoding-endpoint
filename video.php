@@ -1,5 +1,24 @@
 <?php
 require 'vendor/autoload.php';
+use Aws\Sns\SnsClient;
+$snsConfig = array(
+	'region' => 'eu-west-1',
+	'scheme' => 'https',
+);
+
+$GLOBALS['sns'] = SnsClient::factory($snsConfig);
+
+function report_error($errordetails)
+{
+$errordetails['hostname'] = $_SERVER['HOST_NAME'];
+$sns = $GLOBALS['sns'];
+$result = $sns->publish(array(
+	'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
+	'Message' => json_encode($errordetails),
+	'Subject' => "Endpoint Error",
+	'MessageStructure' => 'string',
+));
+}
 
 function output_supplementary_headers()
 {
@@ -14,6 +33,16 @@ mysql_select_db('***REMOVED***');
 if($_GET['file'] or $_GET['filebase']){
 	$fn=$_GET['file'];
 	if(preg_match("/[;']/",$fn)){
+		$details = array(
+		'status'=>'error',
+		'detail'=>array(
+			'error_code'=>400,
+			'error_string'=>"Invalid filespec",
+			'file_name'=>$_GET['file'],
+			'query_url'=>$_SERVER['REQUEST_URI'],
+		),
+		);
+		report_error($details);
 		header('HTTP/1.0 400 Bad Request',true,400);
 		exit;
 	}
@@ -26,6 +55,16 @@ if($_GET['file'] or $_GET['filebase']){
 } elseif($_GET['octopusid']){
 	$octid=$_GET['octopusid'];
 	if(! preg_match("/^\d+$/",$octid)){
+                $details = array(
+                'status'=>'error',
+                'detail'=>array(
+                        'error_code'=>400,
+                        'error_string'=>"Invalid octid",
+                        'octopus_id'=>$octid,
+                        'query_url'=>$_SERVER['REQUEST_URI'],
+                ),
+                );
+                report_error($details);
 		header('HTTP/1.0 400 Bad Request',true,400);
 		exit;
 	}
@@ -34,6 +73,15 @@ if($_GET['file'] or $_GET['filebase']){
 	$idmappingdata=mysql_fetch_assoc($result);
 	$contentid=$idmappingdata['contentid'];
 } else {
+        $details = array(
+       'status'=>'error',
+        'detail'=>array(
+                'error_code'=>404,
+                'error_string'=>"No search request",
+                'query_url'=>$_SERVER['REQUEST_URI'],
+        ),
+        );
+        report_error($details);
 	header('HTTP/1.0 404 Not Found',true,404);
 }
 
@@ -46,6 +94,16 @@ if($_GET['file'] or $_GET['filebase']){
 $q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
 $fcsresult=mysql_query($q);
 if(!$fcsresult){
+                $details = array(
+                'status'=>'error',
+                'detail'=>array(
+                        'error_code'=>500,
+                        'error_string'=>"No content returned",
+                        'query_url'=>$_SERVER['REQUEST_URI'],
+			'db_query'=>$q,
+                ),
+                );
+                report_error($details);
 	header("HTTP/1.0 500 Database query error");
 	exit;
 }
@@ -67,6 +125,17 @@ if($fcsid and $fcsid!=''){
 
 	$contentresult=mysql_query($q);
 	if(!$contentresult){
+                $details = array(
+                'status'=>'error',
+                'detail'=>array(
+                        'error_code'=>500,
+                        'error_string'=>"No encodings found for given title id",
+                        'title_id'=>$fcsid,
+                        'query_url'=>$_SERVER['REQUEST_URI'],
+			'database_query'=>$q,
+                ),
+                );
+                report_error($details);
 		header("HTTP/1.0 500 Database query error");
 		exit;
 		#print "unable to run query $q";
@@ -92,6 +161,16 @@ if($fcsid=='' or mysql_num_rows($contentresult)==0){
 	
         $contentresult=mysql_query($q);
         if(!$contentresult){
+                $details = array(
+                'status'=>'error',
+                'detail'=>array(
+                        'error_code'=>500,
+                        'error_string'=>"No encodings found in fallback mode",
+                        'query_url'=>$_SERVER['REQUEST_URI'],
+			'database_query'=>$q,
+                ),
+                );
+                report_error($details);
                 header("HTTP/1.0 500 Database query error");
                 exit;
                 #print "unable to run query $q";
@@ -102,10 +181,11 @@ if($fcsid=='' or mysql_num_rows($contentresult)==0){
 $have_match=0;
 
 #print "Requested format: '".$_GET['format']."'\n";
-
+$total_encodings=0;
 while($data=mysql_fetch_assoc($contentresult)){
 #	var_dump($data);
 #	print $_GET['format'] ." ? " .$data['format']."\n";
+	++$total_encodings;
 
 	if(array_key_exists('format',$_GET))
 		if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
@@ -139,5 +219,18 @@ while($data=mysql_fetch_assoc($contentresult)){
 	exit;
 }
 print "No content found.\n";
+$details = array(
+'status'=>'error',
+'detail'=>array(
+       'error_code'=>404,
+       'error_string'=>"No matching encodings found",
+       'total_encodings_searched'=>$total_encodings,
+       'file_name'=>$_GET['file'],
+       'title_id'=>$fcsid,
+       'octopus_id'=>$octid,
+       'query_url'=>$_SERVER['REQUEST_URI'],
+),
+);
+report_error($details);
 header("HTTP/1.0 404 Not Found");
 ?>
