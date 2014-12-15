@@ -23,6 +23,7 @@ $result = $sns->publish(array(
 } catch(Exception $e) {
 	error_log("Unable to notify sns: ".$e->getMessage()."\n");
 }
+error_log($errordetails['error_string']);
 }
 
 function output_supplementary_headers()
@@ -32,8 +33,55 @@ header("Access-Control-Allow-Origin: *");
 
 #This script looks up a video in the interactivepublisher database and returns a redirect if it can be found
 
-$dbh=mysql_connect('gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com','***REMOVED***','***REMOVED***');
-mysql_select_db('***REMOVED***');
+$config = parse_ini_file('/etc/endpoint.ini');
+if(! $config){
+	$details = array(
+		'status'=>'error',
+		'detail'=>array(
+			'error_code'=>500,
+			'error_string'=>"No config file available",
+			'file_name'=>$_GET['file'],
+			'query_url'=>$_SERVER['REQUEST_URI'],
+		),
+		);
+		report_error($details);
+		header('HTTP/1.0 500 Server Config Error',true,500);
+		exit;
+}
+
+$num_servers = count($config['dbhost']);
+
+#$dbh=mysql_connect('gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com','***REMOVED***','***REMOVED***');
+#print_r($config);
+$n = 0;
+$dbh=false;
+while(!$dbh){
+#	print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
+	$dbh = mysql_connect($config['dbhost'][$n],
+			$config['dbuser'],
+			$config['dbpass']);
+	if(! mysql_select_db($config['dbname'])){
+#		print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
+		$dbh = false;
+	}
+	++$n;
+	if($n>$num_servers){
+#		print "Not able to connect to any database servers.\n";
+		$details = array(
+		'status'=>'error',
+		'detail'=>array(
+			'error_code'=>500,
+			'error_string'=>"No valid database servers",
+			'file_name'=>$_GET['file'],
+			'query_url'=>$_SERVER['REQUEST_URI'],
+		),
+		);
+		report_error($details);
+		header('HTTP/1.0 500 Bad Request',true,500);
+		exit;
+	}
+}
+#print "Connected to database\n\n";
 
 if($_GET['file'] or $_GET['filebase']){
 	$fn=$_GET['file'];
