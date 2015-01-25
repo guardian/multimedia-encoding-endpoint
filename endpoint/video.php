@@ -4,8 +4,10 @@ include 'common.php';
 #This script looks up a video in the interactivepublisher database and returns a redirect if it can be found
 init();	#this function is in common.php
 
-$data = find_content();	#based on superglobals $_GET etc.
 output_supplementary_headers();
+
+$data = find_content();	#based on superglobals $_GET etc.
+
 
 if(array_key_exists('poster',$_GET)){
 	if(array_key_exists('posterurl',$data)){
