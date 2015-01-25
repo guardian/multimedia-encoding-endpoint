@@ -1,3 +1,4 @@
+<?php
 require '/opt/vendor/autoload.php';
 use Aws\Sns\SnsClient;
 
@@ -241,7 +242,7 @@ function find_content(){
 		#output_supplementary_headers();
 
 		#if($_GET['poster']){	#set the poster=arg to anything to get poster image instead
-		if(preg_match("/^(.*)\.[^\.]+$/",$data['url'],$matches){
+		if(preg_match("/^(.*)\.[^\.]+$/",$data['url'],$matches)){
 			$posterurl=$matches[1]."_poster.jpg";
 			$data['posterurl']=$posterurl;
 		}
@@ -274,3 +275,4 @@ function output_supplementary_headers()
 {
 header("Access-Control-Allow-Origin: *");
 }
+?>

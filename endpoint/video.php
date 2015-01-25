@@ -7,7 +7,7 @@ init();	#this function is in common.php
 $data = find_content();	#based on superglobals $_GET etc.
 output_supplementary_headers();
 
-if($_GET['poster']){
+if(array_key_exists('poster',$_GET)){
 	if(array_key_exists('posterurl',$data)){
 		header("Location: ".$data['posterurl']);
 		exit;
