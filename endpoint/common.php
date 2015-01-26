@@ -11,6 +11,22 @@ function init(){
 	$GLOBALS['sns'] = SnsClient::factory($snsConfig);
 }
 
+#There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
+#it simply takes the orignal referer and replaces everything after the last /.  So, if the client came here through
+#us the url becomes endpoint.yadayada.com/interactivevideos/video.php?format=video/{filename}.m3u8.
+#We deem these "dodgy m3u8 format strings" and deal with them here by supplying override values back to the main func
+function has_dodgy_m3u8_format(formatString)
+{
+$matches=null;
+
+n = preg_match('/video\/(.*)\.m3u8/',formatString,$matches);
+print_r($matches);
+if(n==1){
+	return array("format"=>"video/m3u8", "filename"=>matches[1]);
+}
+return null;
+}
+
 function find_content(){
 	$config = parse_ini_file('/etc/endpoint.ini');
 	if(! $config){
@@ -212,6 +228,15 @@ function find_content(){
 
 	$have_match=0;
 
+	#$override_format="";
+	#$override_filename="";
+	
+	$data_overrides=array();
+	
+	if(array_key_exists('format',$_GET)){
+		$data_overrides = has_dodgy_m3u8_format($_GET['format']));
+	}
+	
 	#print "Requested format: '".$_GET['format']."'\n";
 	$total_encodings=0;
 	while($data=mysql_fetch_assoc($contentresult)){
@@ -219,8 +244,13 @@ function find_content(){
 	#	print $_GET['format'] ." ? " .$data['format']."\n";
 		++$total_encodings;
 
-		if(array_key_exists('format',$_GET))
-			if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
+		if($data_overrides){
+			if($data['format']!=$data_overrides['format'] && $data['mime_equivalent']!=$data_overrides['format']) continue;
+		} else {
+			if(array_key_exists('format',$_GET))
+				if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
+		}
+		
 		if(array_key_exists('need_mobile',$_GET)){
 			#print "checking mobile...\n";	
 			if($data['mobile']!=1) continue;
@@ -249,6 +279,10 @@ function find_content(){
 		
 		#	header("Location: ".$data['url']);
 		#}
+		if($data_overrides and array_key_exists('filename',$data_overrides)){
+			print "debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n";
+			preg_replace('/\/[^\/]+$/',$data_overrides['filename'],$data['url']);
+		}
 		return $data;
 	}
 }
