@@ -15,14 +15,14 @@ function init(){
 #it simply takes the orignal referer and replaces everything after the last /.  So, if the client came here through
 #us the url becomes endpoint.yadayada.com/interactivevideos/video.php?format=video/{filename}.m3u8.
 #We deem these "dodgy m3u8 format strings" and deal with them here by supplying override values back to the main func
-function has_dodgy_m3u8_format(formatString)
+function has_dodgy_m3u8_format($formatString)
 {
 $matches=null;
 
-n = preg_match('/video\/(.*)\.m3u8/',formatString,$matches);
-print_r($matches);
-if(n==1){
-	return array("format"=>"video/m3u8", "filename"=>matches[1]);
+$n = preg_match('/video\/(.*\.m3u8)$/',$formatString,$matches);
+#error_log(print_r($matches,true));
+if($n==1){
+	return array("format"=>"video/m3u8", "filename"=>$matches[1]);
 }
 return null;
 }
@@ -234,7 +234,7 @@ function find_content(){
 	$data_overrides=array();
 	
 	if(array_key_exists('format',$_GET)){
-		$data_overrides = has_dodgy_m3u8_format($_GET['format']));
+		$data_overrides = has_dodgy_m3u8_format($_GET['format']);
 	}
 	
 	#print "Requested format: '".$_GET['format']."'\n";
@@ -280,8 +280,8 @@ function find_content(){
 		#	header("Location: ".$data['url']);
 		#}
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
-			print "debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n";
-			preg_replace('/\/[^\/]+$/',$data_overrides['filename'],$data['url']);
+			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
+			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
 		return $data;
 	}
