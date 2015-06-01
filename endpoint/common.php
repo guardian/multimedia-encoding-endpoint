@@ -78,13 +78,13 @@ function find_content(){
 	}
 	
 	if($mc){
-		print "Looking up in cache...\n";
+		#print "Looking up in cache...\n";
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
-			print "Cache hit!\n";
+		#	print "Cache hit!\n";
 			return $data;
 		} else {
-			print "Cache miss\n";
+		#	print "Cache miss\n";
 		}
 	}
 	
@@ -353,7 +353,7 @@ $raven_client = $GLOBALS['raven'];
 $event_id = $raven_client->getIdent($raven_client->captureMessage(json_encode($errordetails)));
 
 if ($raven_client->getLastError() !== null) {
-    printf('There was an error sending the event to Sentry: %s', $raven_client->getLastError());
+    error_log('There was an error sending the event to Sentry: %s', $raven_client->getLastError());
 }
 
 error_log($errordetails['error_string']);

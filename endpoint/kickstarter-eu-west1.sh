@@ -20,6 +20,11 @@ memcache_host = ***REMOVED***
 #memcache_expiry = 30
 EOF
 
+#blank out default welcome page to just get a blank screen
+cat > /usr/share/httpd/noindex/index.html << EOF
+
+EOF
+
 #Download the endpoint data
 curl https://s3-eu-west-1.amazonaws.com/gnm-multimedia-archivedtech/endpoint_26jan15.zip > /tmp/install.zip
 mkdir /tmp/install
