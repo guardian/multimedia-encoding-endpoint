@@ -1,6 +1,6 @@
 #!/bin/bash
 
-yum -y install httpd php php-mysql unzip
+yum -y install httpd php php-mysql unzip php-pecl-memcache
 
 cat > /etc/endpoint.ini << EOF
 [database]
@@ -10,6 +10,14 @@ dbhost[] = "gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com"
 dbname = "***REMOVED***"
 dbuser = "***REMOVED***"
 dbpass = "***REMOVED***"
+
+[sentry]
+dsn = "https://***REMOVED***:***REMOVED***@***REMOVED***/9"
+
+[cache]
+memcache_host = ***REMOVED***
+#memcache_port = 11211
+#memcache_expiry = 30
 EOF
 
 #Download the endpoint data

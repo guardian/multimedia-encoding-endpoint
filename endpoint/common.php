@@ -1,5 +1,6 @@
 <?php
 require '/opt/vendor/autoload.php';
+
 use Aws\Sns\SnsClient;
 
 function init(){
@@ -54,6 +55,39 @@ function find_content(){
 			exit;
 	}
 
+	if($config['memcache_host']){
+		$mc = new Memcache;
+		$mcport = 11211;
+		if($config['memcache_port']){
+			$mcport = int($config['memcache_port']);
+		}
+		$mc->connect($config['memcache_host'],$mcport);
+		$mcexpiry = 30;	#in seconds
+		if($config['memcache_expiry']){
+			$mcexpiry = int($config['memcache_expiry']);
+		}
+	} else {
+		$mc = null;
+		$details = array (
+			'status'=>'warning',
+			'detail'=>array(
+				'error_string'=>"No memcache config available",
+			),
+		);
+		report_error($details);
+	}
+	
+	if($mc){
+		print "Looking up in cache...\n";
+		$data = $mc->get($_SERVER['REQUEST_URI']);
+		if($data){
+			print "Cache hit!\n";
+			return $data;
+		} else {
+			print "Cache miss\n";
+		}
+	}
+	
 	$num_servers = count($config['dbhost']);
 
 	#$dbh=mysql_connect('gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com','***REMOVED***','***REMOVED***');
@@ -292,6 +326,9 @@ function find_content(){
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
 			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
+		}
+		if($mc){
+			$mc->set($_SERVER['REQUEST_URI'],$data);
 		}
 		return $data;
 	}
