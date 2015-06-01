@@ -12,11 +12,13 @@ function init(){
 	
 	$config = parse_ini_file('/etc/endpoint.ini');
 	
-	$ravenClient = new($config['dsn']);
+	$client = new Raven_Client($config['dsn']);
 	$error_handler = new Raven_ErrorHandler($client);
 	$error_handler->registerExceptionHandler();
 	$error_handler->registerErrorHandler();
 	$error_handler->registerShutdownFunction();
+
+	$GLOBALS['raven'] = $client;
 }
 
 #There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
@@ -310,6 +312,13 @@ $result = $sns->publish(array(
 } catch(Exception $e) {
 	error_log("Unable to notify sns: ".$e->getMessage()."\n");
 }
+$raven_client = $GLOBALS['raven'];
+$event_id = $raven_client->getIdent($raven_client->captureMessage(json_encode($errordetails)));
+
+if ($raven_client->getLastError() !== null) {
+    printf('There was an error sending the event to Sentry: %s', $raven_client->getLastError());
+}
+
 error_log($errordetails['error_string']);
 }
 
