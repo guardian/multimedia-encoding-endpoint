@@ -9,6 +9,14 @@ function init(){
 	);
 
 	$GLOBALS['sns'] = SnsClient::factory($snsConfig);
+	
+	$config = parse_ini_file('/etc/endpoint.ini');
+	
+	$ravenClient = new($config['dsn']);
+	$error_handler = new Raven_ErrorHandler($client);
+	$error_handler->registerExceptionHandler();
+	$error_handler->registerErrorHandler();
+	$error_handler->registerShutdownFunction();
 }
 
 #There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
