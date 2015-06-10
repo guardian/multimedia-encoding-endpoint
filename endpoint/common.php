@@ -186,16 +186,16 @@ function find_content(){
 	$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
 	$fcsresult=mysql_query($q);
 	if(!$fcsresult){
-					$details = array(
-					'status'=>'error',
-					'detail'=>array(
-							'error_code'=>500,
-							'error_string'=>"No content returned",
-							'query_url'=>$_SERVER['REQUEST_URI'],
+		$details = array(
+		'status'=>'error',
+		'detail'=>array(
+				'error_code'=>500,
+				'error_string'=>"No content returned",
+				'query_url'=>$_SERVER['REQUEST_URI'],
 				'db_query'=>$q,
-					),
-					);
-					report_error($details);
+			),
+		);
+		report_error($details);
 		header("HTTP/1.0 500 Database query error");
 		exit;
 	}
@@ -217,17 +217,17 @@ function find_content(){
 
 		$contentresult=mysql_query($q);
 		if(!$contentresult){
-					$details = array(
-					'status'=>'error',
-					'detail'=>array(
-							'error_code'=>500,
-							'error_string'=>"No encodings found for given title id",
-							'title_id'=>$fcsid,
-							'query_url'=>$_SERVER['REQUEST_URI'],
-				'database_query'=>$q,
-					),
-					);
-					report_error($details);
+			$details = array(
+			'status'=>'error',
+			'detail'=>array(
+					'error_code'=>500,
+					'error_string'=>"No encodings found for given title id",
+					'title_id'=>$fcsid,
+					'query_url'=>$_SERVER['REQUEST_URI'],
+					'database_query'=>$q,
+				),
+			);
+			report_error($details);
 			header("HTTP/1.0 500 Database query error");
 			exit;
 			#print "unable to run query $q";
