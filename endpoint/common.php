@@ -62,7 +62,7 @@ function find_content(){
 			$mcport = int($config['memcache_port']);
 		}
 		$mc->connect($config['memcache_host'],$mcport);
-		$mcexpiry = 30;	#in seconds
+		$mcexpiry = 240;	#in seconds
 		if($config['memcache_expiry']){
 			$mcexpiry = int($config['memcache_expiry']);
 		}
@@ -165,7 +165,7 @@ function find_content(){
 		$idmappingdata=mysql_fetch_assoc($result);
 		$contentid=$idmappingdata['contentid'];
 	} else {
-			$details = array(
+		$details = array(
 		   'status'=>'error',
 			'detail'=>array(
 					'error_code'=>404,
@@ -177,6 +177,21 @@ function find_content(){
 		header('HTTP/1.0 404 Not Found',true,404);
 	}
 
+	if(! $contentid or $contentid=""){
+		$details=array(
+			'status'=>'error',
+			'detail'=>array(
+				'error_code'=>404,
+				'error_string'=>'Octopus ID or filename not found',
+				'octopus_id'=>$octid,
+				'query_url'=>$_SERVER['REQUEST_URI'],
+				'file_name'=>$_GET['file'],
+			),
+		);
+		report_error($details);
+		header('HTTP/1.0 404 Not Found',true,404);
+		exit;
+	}
 	#Step 1.
 	#The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have multiple versions.
 	#Versions can have subtly different bitrates AND arrive at different times, so just searching versions with a sort order can return old results no matter what.
