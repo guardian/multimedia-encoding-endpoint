@@ -59,12 +59,12 @@ function find_content(){
 		$mc = new Memcache;
 		$mcport = 11211;
 		if($config['memcache_port']){
-			$mcport = int($config['memcache_port']);
+			$mcport = intval($config['memcache_port']);
 		}
 		$mc->connect($config['memcache_host'],$mcport);
 		$mcexpiry = 240;	#in seconds
 		if($config['memcache_expiry']){
-			$mcexpiry = int($config['memcache_expiry']);
+			$mcexpiry = intval($config['memcache_expiry']);
 		}
 	} else {
 		$mc = null;
