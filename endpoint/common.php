@@ -90,8 +90,6 @@ function find_content(){
 	
 	$num_servers = count($config['dbhost']);
 
-	#$dbh=mysql_connect('gnm-mm-***REMOVED***.cuey4k0bnsmn.eu-west-1.rds.amazonaws.com','***REMOVED***','***REMOVED***');
-	#print_r($config);
 	$n = 0;
 	$dbh=false;
 	while(!$dbh){
@@ -122,6 +120,7 @@ function find_content(){
 	}
 	#print "Connected to database\n\n";
 
+	$contentid=-1;
 	if($_GET['file'] or $_GET['filebase']){
 		$fn=$_GET['file'];
 		if(preg_match("/[;']/",$fn)){
@@ -181,7 +180,6 @@ function find_content(){
 		header('HTTP/1.0 404 Not Found',true,404);
 	}
 
-	print "debug: got content ID $contentid\n";
 	if(! $contentid or $contentid==""){
 		$details=array(
 			'status'=>'error',
