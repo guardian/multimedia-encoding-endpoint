@@ -161,8 +161,12 @@ function find_content(){
 			exit;
 		}
 		$q="select * from idmapping where octopus_id=$octid";
+		#print "debug: initial query is $q<br>";
 		$result=mysql_query($q);
+		#print "debug: got ".mysql_num_rows($result)." rows returned<br>";
 		$idmappingdata=mysql_fetch_assoc($result);
+		#print_r($idmappingdata);
+		#print "<br>";
 		$contentid=$idmappingdata['contentid'];
 	} else {
 		$details = array(
@@ -177,7 +181,8 @@ function find_content(){
 		header('HTTP/1.0 404 Not Found',true,404);
 	}
 
-	if(! $contentid or $contentid=""){
+	print "debug: got content ID $contentid\n";
+	if(! $contentid or $contentid==""){
 		$details=array(
 			'status'=>'error',
 			'detail'=>array(
@@ -199,7 +204,9 @@ function find_content(){
 	#Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
 	#So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the old behaviour (step 3)
 	$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
+	#print "second query is $q\n";
 	$fcsresult=mysql_query($q);
+
 	if(!$fcsresult){
 		$details = array(
 		'status'=>'error',
