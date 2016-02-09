@@ -33,7 +33,7 @@ function has_dodgy_m3u8_format($formatString)
 $matches=null;
 
 $n = preg_match('/video\/(.*\.m3u8)$/',$formatString,$matches);
-#error_log(print_r($matches,true));
+error_log(print_r($matches,true));
 if($n==1){
 	return array("format"=>"video/m3u8", "filename"=>$matches[1]);
 }
@@ -80,13 +80,13 @@ function find_content(){
 	}
 	
 	if($mc){
-		#print "Looking up in cache...\n";
+		print "Looking up in cache...\n";
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
-		#	print "Cache hit!\n";
+			print "Cache hit!\n";
 			return $data;
 		} else {
-		#	print "Cache miss\n";
+			print "Cache miss\n";
 		}
 	}
 	
@@ -95,17 +95,17 @@ function find_content(){
 	$n = 0;
 	$dbh=false;
 	while(!$dbh){
-	#	print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
+		print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
 		$dbh = mysql_connect($config['dbhost'][$n],
 				$config['dbuser'],
 				$config['dbpass']);
 		if(! mysql_select_db($config['dbname'])){
-	#		print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
+			print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
 			$dbh = false;
 		}
 		++$n;
 		if($n>$num_servers){
-	#		print "Not able to connect to any database servers.\n";
+			print "Not able to connect to any database servers.\n";
 			$details = array(
 			'status'=>'error',
 			'detail'=>array(
@@ -120,7 +120,7 @@ function find_content(){
 			exit;
 		}
 	}
-	#print "Connected to database\n\n";
+	print "Connected to database\n\n";
 
 	$contentid=-1;
 	if($_GET['file'] or $_GET['filebase']){
@@ -162,12 +162,12 @@ function find_content(){
 			exit;
 		}
 		$q="select * from idmapping where octopus_id=$octid";
-		#print "debug: initial query is $q<br>";
+		print "debug: initial query is $q<br>";
 		$result=mysql_query($q);
-		#print "debug: got ".mysql_num_rows($result)." rows returned<br>";
+		print "debug: got ".mysql_num_rows($result)." rows returned<br>";
 		$idmappingdata=mysql_fetch_assoc($result);
-		#print_r($idmappingdata);
-		#print "<br>";
+		print_r($idmappingdata);
+		print "<br>";
 		$contentid=$idmappingdata['contentid'];
 	} else {
 		$details = array(
