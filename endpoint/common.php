@@ -3,6 +3,8 @@ require '/opt/vendor/autoload.php';
 
 use Aws\Sns\SnsClient;
 
+error_log("Testing logging");
+
 function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
