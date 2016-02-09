@@ -3,7 +3,7 @@ require '/opt/vendor/autoload.php';
 
 use Aws\Sns\SnsClient;
 
-report_error("This is a test.";
+report_error("This is a test.");
 
 function init(){
 	$snsConfig = array(
