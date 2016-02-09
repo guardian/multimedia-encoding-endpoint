@@ -140,7 +140,7 @@ function find_content(){
 			exit;
 		}
 		$fn=mysql_real_escape_string($fn);
-		$q="select * from idmapping where filebase='$fn'";
+		$q="select * from idmapping where filebase='$fn' order by lastupdate desc limit 1";
 		$result=mysql_query($q);
 		$idmappingdata=mysql_fetch_assoc($result);
 
@@ -161,7 +161,7 @@ function find_content(){
 			header('HTTP/1.0 400 Bad Request',true,400);
 			exit;
 		}
-		$q="select * from idmapping where octopus_id=$octid";
+		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
 		print "debug: initial query is $q<br>";
 		$result=mysql_query($q);
 		print "debug: got ".mysql_num_rows($result)." rows returned<br>";
