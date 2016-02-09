@@ -204,7 +204,7 @@ function find_content(){
 	#Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
 	#So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the old behaviour (step 3)
 	$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
-	#print "second query is $q\n";
+	print "second query is $q\n";
 	$fcsresult=mysql_query($q);
 
 	if(!$fcsresult){
@@ -224,7 +224,7 @@ function find_content(){
 	while($fcsdata=mysql_fetch_assoc($fcsresult)){
 		if($fcsdata['fcs_id'] and strlen($fcsdata['fcs_id'])>1){
 			$fcsid=$fcsdata['fcs_id'];
-	#		print "got fcsid $fcsid";
+			print "got fcsid $fcsid";
 			break;
 		}
 	}
@@ -235,7 +235,7 @@ function find_content(){
 	#If none are found, AND we have allow_old set, then re-do the search over everything (and potentially return an old result)
 	if($fcsid and $fcsid!=''){
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
-	#	print "searching by fcsid $fcsid...\n";
+		print "searching by fcsid $fcsid...\n";
 
 		$contentresult=mysql_query($q);
 		if(!$contentresult){
@@ -252,7 +252,7 @@ function find_content(){
 			report_error($details);
 			header("HTTP/1.0 500 Database query error");
 			exit;
-			#print "unable to run query $q";
+			print "unable to run query $q";
 		}
 	#	die("testing");
 	}
@@ -265,7 +265,7 @@ function find_content(){
 	#		header("HTTP/1.0 404 No content found");
 	#		exit;
 	#	}
-	#	print "old search fallback...\n";
+		print "old search fallback...\n";
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
 		if(! $_GET['allow_old']){
 			   $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
@@ -303,7 +303,7 @@ function find_content(){
 		$data_overrides = has_dodgy_m3u8_format($_GET['format']);
 	}
 	
-	#print "Requested format: '".$_GET['format']."'\n";
+	print "Requested format: '".$_GET['format']."'\n";
 	$total_encodings=0;
 	while($data=mysql_fetch_assoc($contentresult)){
 	#	var_dump($data);
@@ -318,7 +318,7 @@ function find_content(){
 		}
 		
 		if(array_key_exists('need_mobile',$_GET)){
-			#print "checking mobile...\n";	
+			print "checking mobile...\n";	
 			if($data['mobile']!=1) continue;
 		}
 		if(array_key_exists('minbitrate',$_GET))	
@@ -346,7 +346,7 @@ function find_content(){
 		#	header("Location: ".$data['url']);
 		#}
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
-			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
+			error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
 		if($mc){
