@@ -350,7 +350,7 @@ function find_content(){
 		}
 		if(! $_GET['allow_insecure']){
 			#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
-			$data['url'] = preg_replace('^http:','https:',$data['url']);
+			$data['url'] = preg_replace('/^http:/','https:',$data['url']);
 		}
 		return $data;
 	}
