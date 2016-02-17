@@ -341,14 +341,16 @@ function find_content(){
 			$data['posterurl']=$posterurl;
 		}
 		
-		#	header("Location: ".$data['url']);
-		#}
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
 			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
 		if($mc){
 			$mc->set($_SERVER['REQUEST_URI'],$data);
+		}
+		if(! $_GET['allow_insecure']){
+			#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
+			$data['url'] = preg_replace('^http:','https:',$data['url']);
 		}
 		return $data;
 	}
