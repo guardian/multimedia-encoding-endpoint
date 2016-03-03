@@ -346,7 +346,8 @@ function find_content(){
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
 		if($mc){
-			$mc->set($_SERVER['REQUEST_URI'],$data);
+			/*third parameter is flags, fourth is expiry http://stackoverflow.com/questions/3740317/php-memcached-error/3740625*/
+			$mc->set($_SERVER['REQUEST_URI'],$data, false, $mcexpiry);
 		}
 		if(! $_GET['allow_insecure']){
 			#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
@@ -371,14 +372,21 @@ $result = $sns->publish(array(
 } catch(Exception $e) {
 	error_log("Unable to notify sns: ".$e->getMessage()."\n");
 }
-$raven_client = $GLOBALS['raven'];
-$event_id = $raven_client->getIdent($raven_client->captureMessage(json_encode($errordetails)));
-
-if ($raven_client->getLastError() !== null) {
-    error_log('There was an error sending the event to Sentry: %s', $raven_client->getLastError());
+/* do not bother reporting 404 errors to Sentry */
+if(! $errordetails['detail']['error_code'] != 404){
+	$raven_client = $GLOBALS['raven'];
+	try{ 
+		$event_id = $raven_client->getIdent(
+			$raven_client->captureMessage("Endpoint reported " + $errordetails['detail']['error_code'] + " " + $errordetails['detail']['error_string'],$errordetails)
+		);
+	} catch(Exception $e){
+		$raven_client->captureMessage(json_encode($errordetails));
+	}
+	if ($raven_client->getLastError() !== null) {
+    	error_log('There was an error sending the event to Sentry: ' . $raven_client->getLastError());
+	}
 }
-
-error_log($errordetails['error_string']);
+error_log($errordetails['detail']['error_string']);
 }
 
 function output_supplementary_headers()
