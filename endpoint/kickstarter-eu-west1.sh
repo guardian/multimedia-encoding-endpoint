@@ -2,7 +2,25 @@
 
 bin/timedatectl set-timezone Europe/London
 
-yum -y install httpd php php-mysql unzip php-pecl-memcache
+echo -------------------------------------
+echo Kickstarter: setting up initial packages
+echo -------------------------------------
+yum -y install httpd php php-mysql unzip php-pecl-memcache python
+
+echo -------------------------------------
+echo Kickstarter: setting up Python
+echo -------------------------------------
+curl https://s3-eu-west-1.amazonaws.com/gnm-multimedia-archivedtech/get-pip.py > /tmp/get-pip.py
+python /tmp/get-pip.py
+
+echo -------------------------------------
+echo Kickstarter: setting up AWS CLI
+echo -------------------------------------
+/usr/bin/pip install awscli
+
+echo -------------------------------------
+echo Kickstarter: setting up initial configuration
+echo -------------------------------------
 
 cat > /etc/endpoint.ini << EOF
 [database]
@@ -27,11 +45,18 @@ cat > /usr/share/httpd/noindex/index.html << EOF
 
 EOF
 
+echo -------------------------------------
+echo Kickstarter: downloading current software version
+echo -------------------------------------
+
 #Download the endpoint data
-curl https://s3-eu-west-1.amazonaws.com/gnm-multimedia-archivedtech/endpoint_01mar16.zip > /tmp/install.zip
+aws s3 cp s3://gnm-multimedia-archivedtech/Endpoint/endpoint_current.zip /tmp/install.zip
 mkdir /tmp/install
 unzip /tmp/install.zip -d /tmp/install
 
+echo -------------------------------------
+echo Kickstarter: installing endpoint and dependencies
+echo -------------------------------------
 #install the scripts
 mkdir /var/www/html/interactivevideos
 mv /tmp/install/common.php /var/www/html/interactivevideos
@@ -46,10 +71,16 @@ mv /tmp/install/composer.json /opt
 mv /tmp/install/composer.phar /opt
 HOME=/usr/share/php php /opt/composer.phar install
 
+echo -------------------------------------
+echo Kickstarter: configuring SELinux
+echo -------------------------------------
 #ensure that SELinux security contexts are set up correctly
 /usr/sbin/restorecon -R /var/www
 setsebool -P httpd_can_network_connect 1
 
+echo -------------------------------------
+echo Kickstarter: configuring Apache
+echo -------------------------------------
 #tweak apache config
 #up server limits
 echo ServerLimit 512 >> /etc/httpd/conf/httpd.conf
@@ -64,8 +95,14 @@ cat << EOF > /etc/httpd/conf.d/endpointserver.conf
 </Directory>
 EOF
 
+echo -------------------------------------
+echo Kickstarter: starting up
+echo -------------------------------------
 #now start up apache
 service httpd start
 
+echo -------------------------------------
+echo Kickstarter: cleaning up
+echo -------------------------------------
 rm -rf /tmp/install
 rm -f /tmp/install.zip
