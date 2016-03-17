@@ -4,7 +4,8 @@ require '/opt/vendor/autoload.php';
 use Aws\Sns\SnsClient;
 
 /*stop AWS complaining*/
-date_default_timezone_set('UTC')
+date_default_timezone_set('UTC');
+
 function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
@@ -43,12 +44,15 @@ return null;
 function find_content(){
 	$config = parse_ini_file('/etc/endpoint.ini');
 	if(! $config){
+		$fn = "(none)";
+		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
+		
 		$details = array(
 			'status'=>'error',
 			'detail'=>array(
 				'error_code'=>500,
 				'error_string'=>"No config file available",
-				'file_name'=>$_GET['file'],
+				'file_name'=>$fn,
 				'query_url'=>$_SERVER['REQUEST_URI'],
 			),
 			);
@@ -187,6 +191,9 @@ function find_content(){
 	}
 
 	if(! $contentid or $contentid==""){
+		$fn = "(none)";
+		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
+		
 		$details=array(
 			'status'=>'error',
 			'detail'=>array(
@@ -194,7 +201,7 @@ function find_content(){
 				'error_string'=>'Octopus ID or filename not found',
 				'octopus_id'=>$octid,
 				'query_url'=>$_SERVER['REQUEST_URI'],
-				'file_name'=>$_GET['file'],
+				'file_name'=>$fn,
 			),
 		);
 		report_error($details);
@@ -271,7 +278,7 @@ function find_content(){
 	#	}
 	#	print "old search fallback...\n";
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
-		if(! array_key_exists('allow_old',$_GET)){
+		if(! array_key_exists('allow_old',$_GET) and $idmappingdata){
 			   $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 		}
 		#$q=$q." order by lastupdate desc";
