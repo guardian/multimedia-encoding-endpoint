@@ -3,6 +3,8 @@ require '/opt/vendor/autoload.php';
 
 use Aws\Sns\SnsClient;
 
+/*stop AWS complaining*/
+date_default_timezone_set('UTC')
 function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
@@ -104,12 +106,14 @@ function find_content(){
 		++$n;
 		if($n>$num_servers){
 	#		print "Not able to connect to any database servers.\n";
+			$fn="(none)";
+			if(array_key_exists('file',$_GET)) $fn=$_GET['file'];
 			$details = array(
 			'status'=>'error',
 			'detail'=>array(
 				'error_code'=>500,
 				'error_string'=>"No valid database servers",
-				'file_name'=>$_GET['file'],
+				'file_name'=>$fn,
 				'query_url'=>$_SERVER['REQUEST_URI'],
 			),
 			);
@@ -121,7 +125,8 @@ function find_content(){
 	#print "Connected to database\n\n";
 
 	$contentid=-1;
-	if($_GET['file'] or $_GET['filebase']){
+	//if($_GET['file'] or $_GET['filebase']){
+	if(array_key_exists('file',$_GET)){
 		$fn=$_GET['file'];
 		if(preg_match("/[;']/",$fn)){
 			$details = array(
@@ -143,7 +148,8 @@ function find_content(){
 		$idmappingdata=mysql_fetch_assoc($result);
 
 		$contentid=$idmappingdata['contentid'];
-	} elseif($_GET['octopusid']){
+	//} elseif($_GET['octopusid']){
+	} elseif(array_key_exists('octopusid',$_GET)){
 		$octid=$_GET['octopusid'];
 		if(! preg_match("/^\d+$/",$octid)){
 					$details = array(
@@ -265,7 +271,7 @@ function find_content(){
 	#	}
 	#	print "old search fallback...\n";
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
-		if(! $_GET['allow_old']){
+		if(! array_key_exists('allow_old',$_GET)){
 			   $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
 		}
 		#$q=$q." order by lastupdate desc";
@@ -349,7 +355,7 @@ function find_content(){
 			/*third parameter is flags, fourth is expiry http://stackoverflow.com/questions/3740317/php-memcached-error/3740625*/
 			$mc->set($_SERVER['REQUEST_URI'],$data, false, $mcexpiry);
 		}
-		if(! $_GET['allow_insecure']){
+		if(! array_key_exists('allow_insecure',$_GET)){
 			#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
 			$data['url'] = preg_replace('/^http:/','https:',$data['url']);
 		}
@@ -359,7 +365,7 @@ function find_content(){
 
 function report_error($errordetails)
 {
-$errordetails['hostname'] = $_SERVER['HOST_NAME'];
+$errordetails['hostname'] = $_SERVER['SERVER_NAME'];
 $sns = $GLOBALS['sns'];
 try{
 $result = $sns->publish(array(

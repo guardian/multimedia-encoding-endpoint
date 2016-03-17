@@ -1,6 +1,10 @@
 <?php
 include 'common.php';
 
+#make sure that these are set before starting
+$octid="(none)";
+$fcsid="(none)";
+
 #This script looks up a video in the interactivepublisher database and returns a redirect if it can be found
 init();	#this function is in common.php
 
