@@ -42,6 +42,9 @@ return null;
 }
 
 function find_content(){
+	$idmappingdata = NULL;
+	$fcsid = NULL;
+	$octid = NULL;
 	$config = parse_ini_file('/etc/endpoint.ini');
 	if(! $config){
 		$fn = "(none)";
@@ -232,6 +235,7 @@ function find_content(){
 		header("HTTP/1.0 500 Database query error");
 		exit;
 	}
+	$fcsid=NULL;
 	while($fcsdata=mysql_fetch_assoc($fcsresult)){
 		if($fcsdata['fcs_id'] and strlen($fcsdata['fcs_id'])>1){
 			$fcsid=$fcsdata['fcs_id'];
@@ -271,7 +275,7 @@ function find_content(){
 	#Step 3.
 	#fall back to the old behaviour if nothing was found. this usually means an update is in progress.
 	#allow_old will enable this behaviour in the next version
-	if($fcsid=='' or mysql_num_rows($contentresult)==0){
+	if(mysql_num_rows($contentresult)==0 or $fcsid==NULL or $fcsid==''){
 	#	if(! $_GET['allow_old']){
 	#		header("HTTP/1.0 404 No content found");
 	#		exit;
