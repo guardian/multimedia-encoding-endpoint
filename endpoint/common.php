@@ -10,6 +10,7 @@ function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
 		'scheme' => 'https',
+		'version' => '2010-03-31',
 	);
 
 	$GLOBALS['sns'] = SnsClient::factory($snsConfig);
@@ -75,6 +76,11 @@ function find_content(){
 		if($config['memcache_expiry']){
 			$mcexpiry = intval($config['memcache_expiry']);
 		}
+		#how long to cache not found/404 errors for
+		$mcnullexpiry = 10;	#in seconds
+		if($config['memcache_notfound_expiry']){
+			$mcnullexpiry = intval($config['memcache_notfound_expiry']);
+		}		
 	} else {
 		$mc = null;
 		$details = array (
@@ -90,6 +96,7 @@ function find_content(){
 		#print "Looking up in cache...\n";
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
+			if($data['status']=='notfound') return null;
 		#	print "Cache hit!\n";
 			return $data;
 		} else {
@@ -275,7 +282,7 @@ function find_content(){
 	#Step 3.
 	#fall back to the old behaviour if nothing was found. this usually means an update is in progress.
 	#allow_old will enable this behaviour in the next version
-	if(mysql_num_rows($contentresult)==0 or $fcsid==NULL or $fcsid==''){
+	if($fcsid==NULL or $fcsid=='' or mysql_num_rows($contentresult)==0 ){
 	#	if(! $_GET['allow_old']){
 	#		header("HTTP/1.0 404 No content found");
 	#		exit;
@@ -372,6 +379,8 @@ function find_content(){
 		}
 		return $data;
 	}
+	/* nothing was found */
+	$mc->set($_SERVER['REQUEST_URI'],array('status'=>'notfound'),false,$mcnullexpiry);
 }
 
 function report_error($errordetails)

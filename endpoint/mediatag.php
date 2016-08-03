@@ -25,6 +25,7 @@ if($data){
 	exit;
 }
 
+header("HTTP/1.0 404 Not Found");
 print "No content found.\n";
 $details = array(
 'status'=>'error',
@@ -39,5 +40,5 @@ $details = array(
 ),
 );
 report_error($details);
-header("HTTP/1.0 404 Not Found");
+
 ?>
