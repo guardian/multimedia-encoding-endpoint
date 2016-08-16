@@ -3,6 +3,7 @@
 <phpunit bootstrap="test_bootstrap.php" convertErrorsToExceptions="false" convertNoticesToExceptions="false" convertWarningsToExceptions="false">
     <testsuites>
       <testsuite name="common">
+        <file>SimpleTest.php</file>
         <file>CommonDBTest.php</file>
       </testsuite>
     </testsuites>
