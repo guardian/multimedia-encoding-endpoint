@@ -1,11 +1,30 @@
 <?php
-require 'vendor/autoload.php';
+require dirname(__FILE__).'/vendor/autoload.php';
 
 use Aws\Sns\SnsClient;
 
 /*stop AWS complaining*/
 date_default_timezone_set('UTC');
 
+function load_config()
+{
+	$config=NULL;
+	if(file_exists('endpoint.ini'))
+		$config = parse_ini_file('endpoint.ini');
+		
+	if(! $config && file_exists('/etc/endpoint.ini'))
+		$config = parse_ini_file('/etc/endpoint.ini');
+		
+	if(! $config) $config=[];
+	if(array_key_exists('DB_HOST',$GLOBALS)) $config['dbhost'] = [ $GLOBALS['DB_HOST'] ];	
+	if(array_key_exists('DB_USER',$GLOBALS)) $config['dbuser'] = $GLOBALS['DB_USER'];
+	if(array_key_exists('DB_PASSWD',$GLOBALS)) $config['dbpass'] = $GLOBALS['DB_PASSWD'];
+	if(array_key_exists('DB_DBNAME',$GLOBALS)) $config['dbname'] = $GLOBALS['DB_DBNAME'];
+	if(array_key_exists('MEMCACHE_HOST',$GLOBALS)) $config['memcache_host'] = $GLOBALS['MEMCACHE_HOST'];
+	if(array_key_exists('MEMCACHE_PORT',$GLOBALS)) $config['memcache_port'] = $GLOBALS['MEMCACHE_PORT'];
+
+	return $config;
+}
 function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
@@ -15,15 +34,16 @@ function init(){
 
 	$GLOBALS['sns'] = SnsClient::factory($snsConfig);
 	
-	$config = parse_ini_file('/etc/endpoint.ini');
-	
-	$client = new Raven_Client($config['dsn']);
-	$error_handler = new Raven_ErrorHandler($client);
-	$error_handler->registerExceptionHandler();
-	$error_handler->registerErrorHandler();
-	$error_handler->registerShutdownFunction();
+	$config = load_config();
 
-	$GLOBALS['raven'] = $client;
+        if(array_key_exists('dsn',$config)){	
+		$client = new Raven_Client($config['dsn']);
+		$error_handler = new Raven_ErrorHandler($client);
+		$error_handler->registerExceptionHandler();
+		$error_handler->registerErrorHandler();
+		$error_handler->registerShutdownFunction();
+		$GLOBALS['raven'] = $client;
+	}
 }
 
 #There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
@@ -55,7 +75,7 @@ function find_content($config){
 	$fcsid = NULL;
 	$octid = NULL;
 	try {
-		if(! $config) $config = parse_ini_file('/etc/endpoint.ini');
+		if(! $config) $config = load_config();
 	} catch(Exception $e){
 	//if(! $config or config==[]){
 		$fn = "(none)";
@@ -75,7 +95,7 @@ function find_content($config){
 		throw new ContentErrorException("No config file available");
 	}
 
-	if($config['memcache_host']){
+	if(array_key_exists('memcache_host',$config)){
 		$mc = new Memcache;
 		$mcport = 11211;
 		if(array_key_exists('memcache_port',$config)){
@@ -131,8 +151,9 @@ function find_content($config){
 			//print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
 			$dbh = false;
 		}
+		if($dbh) break;
 		++$n;
-		if($n>$num_servers){
+		if($n>=$num_servers){
 			//print "Not able to connect to any database servers.\n";
 			$fn="(none)";
 			if(array_key_exists('file',$_GET)) $fn=$_GET['file'];
@@ -400,34 +421,40 @@ function find_content($config){
 function report_error($errordetails)
 {
 $errordetails['hostname'] = $_SERVER['SERVER_NAME'];
-$sns = $GLOBALS['sns'];
-if(! $sns) return;
 
-try{
-$result = $sns->publish(array(
-	'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
-	'Message' => json_encode($errordetails),
-	'Subject' => "Endpoint Error",
-	'MessageStructure' => 'string',
-));
-
-} catch(Exception $e) {
-	error_log("Unable to notify sns: ".$e->getMessage()."\n");
-}
-/* do not bother reporting 404 errors to Sentry */
-if(! $errordetails['detail']['error_code'] != 404){
-	$raven_client = $GLOBALS['raven'];
-	try{ 
-		$event_id = $raven_client->getIdent(
-			$raven_client->captureMessage("Endpoint reported " + $errordetails['detail']['error_code'] + " " + $errordetails['detail']['error_string'],$errordetails)
-		);
-	} catch(Exception $e){
-		$raven_client->captureMessage(json_encode($errordetails));
-	}
-	if ($raven_client->getLastError() !== null) {
-    	error_log('There was an error sending the event to Sentry: ' . $raven_client->getLastError());
+if(array_key_exists('sns',$GLOBALS)){
+	$sns = $GLOBALS['sns'];
+	
+	try{
+	$result = $sns->publish(array(
+		'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
+		'Message' => json_encode($errordetails),
+		'Subject' => "Endpoint Error",
+		'MessageStructure' => 'string',
+	));
+	
+	} catch(Exception $e) {
+		error_log("Unable to notify sns: ".$e->getMessage()."\n");
 	}
 }
+
+if(array_key_exists('raven',$GLOBALS)){
+	/* do not bother reporting 404 errors to Sentry */
+	if(array_key_exists('error_code',$errordetails['detail']) && ! $errordetails['detail']['error_code'] != 404){
+		$raven_client = $GLOBALS['raven'];
+		try{ 
+			$event_id = $raven_client->getIdent(
+				$raven_client->captureMessage("Endpoint reported " + $errordetails['detail']['error_code'] + " " + $errordetails['detail']['error_string'],$errordetails)
+			);
+		} catch(Exception $e){
+			$raven_client->captureMessage(json_encode($errordetails));
+		}
+		if ($raven_client->getLastError() !== null) {
+		error_log('There was an error sending the event to Sentry: ' . $raven_client->getLastError());
+		}
+	}
+}
+
 error_log($errordetails['detail']['error_string']);
 }
 

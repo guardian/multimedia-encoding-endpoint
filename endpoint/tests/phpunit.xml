@@ -5,11 +5,13 @@
       <testsuite name="common">
         <file>SimpleTest.php</file>
         <file>CommonDBTest.php</file>
+        <file>VideoEndpointTest.php</file>
       </testsuite>
     </testsuites>
     
     <php>
         <!--<includePath></includePath>-->
+        <var name="DB_HOST" value="127.0.0.1"/>
         <var name="DB_DSN" value="mysql:dbname=circle_test;host=127.0.0.1;port=3306" />
         <!--<var name="DB_DSN" value="sqlite::memory"/>-->
         <var name="DB_USER" value="ubuntu" />

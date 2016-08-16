@@ -7,7 +7,7 @@ init();	#this function is in common.php
 output_supplementary_headers();
 
 try {
-	$data = find_content();	#based on superglobals $_GET etc.
+	$data = find_content(NULL);	#based on superglobals $_GET etc.
 } catch(ContentErrorException $e){
 	exit;	//error message has already been output and stored
 }
