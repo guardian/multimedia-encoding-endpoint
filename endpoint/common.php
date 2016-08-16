@@ -1,5 +1,5 @@
 <?php
-require '/opt/vendor/autoload.php';
+require 'vendor/autoload.php';
 
 use Aws\Sns\SnsClient;
 
@@ -42,12 +42,22 @@ if($n==1){
 return null;
 }
 
-function find_content(){
+class ContentErrorException extends Exception
+{
+    // custom string representation of object
+    public function __toString() {
+        return __CLASS__ . ": [{$this->code}]: {$this->message}\n";
+    }
+}
+
+function find_content($config){
 	$idmappingdata = NULL;
 	$fcsid = NULL;
 	$octid = NULL;
-	$config = parse_ini_file('/etc/endpoint.ini');
-	if(! $config){
+	try {
+		if(! $config) $config = parse_ini_file('/etc/endpoint.ini');
+	} catch(Exception $e){
+	//if(! $config or config==[]){
 		$fn = "(none)";
 		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
 		
@@ -60,25 +70,25 @@ function find_content(){
 				'query_url'=>$_SERVER['REQUEST_URI'],
 			),
 			);
-			report_error($details);
-			header('HTTP/1.0 500 Server Config Error',true,500);
-			exit;
+		report_error($details);
+		header('HTTP/1.0 500 Server Config Error',true,500);
+		throw new ContentErrorException("No config file available");
 	}
 
 	if($config['memcache_host']){
 		$mc = new Memcache;
 		$mcport = 11211;
-		if($config['memcache_port']){
+		if(array_key_exists('memcache_port',$config)){
 			$mcport = intval($config['memcache_port']);
 		}
 		$mc->connect($config['memcache_host'],$mcport);
 		$mcexpiry = 240;	#in seconds
-		if($config['memcache_expiry']){
+		if(array_key_exists('memcache_expiry',$config)){
 			$mcexpiry = intval($config['memcache_expiry']);
 		}
 		#how long to cache not found/404 errors for
 		$mcnullexpiry = 10;	#in seconds
-		if($config['memcache_notfound_expiry']){
+		if(array_key_exists('memcache_notfound_expiry',$config)){
 			$mcnullexpiry = intval($config['memcache_notfound_expiry']);
 		}		
 	} else {
@@ -96,8 +106,12 @@ function find_content(){
 		#print "Looking up in cache...\n";
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
-			if($data['status']=='notfound') return null;
+			if(array_key_exists('status',$data) && $data['status']=='notfound') return null;
 		#	print "Cache hit!\n";
+			if(! array_key_exists('allow_insecure',$_GET)){
+				#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
+				$data['url'] = preg_replace('/^http:/','https:',$data['url']);
+			}
 			return $data;
 		} else {
 		#	print "Cache miss\n";
@@ -109,17 +123,17 @@ function find_content(){
 	$n = 0;
 	$dbh=false;
 	while(!$dbh){
-	#	print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
+		//print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
 		$dbh = mysql_connect($config['dbhost'][$n],
 				$config['dbuser'],
 				$config['dbpass']);
 		if(! mysql_select_db($config['dbname'])){
-	#		print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
+			//print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
 			$dbh = false;
 		}
 		++$n;
 		if($n>$num_servers){
-	#		print "Not able to connect to any database servers.\n";
+			//print "Not able to connect to any database servers.\n";
 			$fn="(none)";
 			if(array_key_exists('file',$_GET)) $fn=$_GET['file'];
 			$details = array(
@@ -133,7 +147,7 @@ function find_content(){
 			);
 			report_error($details);
 			header('HTTP/1.0 500 Bad Request',true,500);
-			exit;
+			throw new ContentErrorException("Not able to connect to any database servers");;
 		}
 	}
 	#print "Connected to database\n\n";
@@ -154,7 +168,7 @@ function find_content(){
 			);
 			report_error($details);
 			header('HTTP/1.0 400 Bad Request',true,400);
-			exit;
+			throw new ContentErrorException("Invalid filespec");
 		}
 		$fn=mysql_real_escape_string($fn);
 		$q="select * from idmapping where filebase='$fn' order by lastupdate desc limit 1";
@@ -177,7 +191,7 @@ function find_content(){
 					);
 					report_error($details);
 			header('HTTP/1.0 400 Bad Request',true,400);
-			exit;
+			throw new ContentErrorException("Invalid octid");
 		}
 		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
 		#print "debug: initial query is $q<br>";
@@ -216,7 +230,7 @@ function find_content(){
 		);
 		report_error($details);
 		header('HTTP/1.0 404 Not Found',true,404);
-		exit;
+		throw new ContentErrorException("Octopus ID or filename not found");
 	}
 	#Step 1.
 	#The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have multiple versions.
@@ -224,7 +238,7 @@ function find_content(){
 	#So, the first step is to find the most recent FCS ID and then search with that
 	#Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
 	#So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the old behaviour (step 3)
-	$q="select fcs_id from encodings where contentid=$contentid order by lastupdate desc";
+	$q="select fcs_id from encodings left join mime_equivalents on (real_name=encodings.format)where contentid=$contentid order by lastupdate desc";
 	#print "second query is $q\n";
 	$fcsresult=mysql_query($q);
 
@@ -240,7 +254,7 @@ function find_content(){
 		);
 		report_error($details);
 		header("HTTP/1.0 500 Database query error");
-		exit;
+		throw new ContentErrorException("No content from database");
 	}
 	$fcsid=NULL;
 	while($fcsdata=mysql_fetch_assoc($fcsresult)){
@@ -273,7 +287,7 @@ function find_content(){
 			);
 			report_error($details);
 			header("HTTP/1.0 500 Database query error");
-			exit;
+			throw new ContentErrorException("No encodings found for given title id");
 			#print "unable to run query $q";
 		}
 	#	die("testing");
@@ -308,7 +322,7 @@ function find_content(){
 					);
 					report_error($details);
 					header("HTTP/1.0 500 Database query error");
-					exit;
+					throw new ContentErrorException("No encodings found in fallback mode");
 					#print "unable to run query $q";
 			}
 	}
@@ -387,6 +401,8 @@ function report_error($errordetails)
 {
 $errordetails['hostname'] = $_SERVER['SERVER_NAME'];
 $sns = $GLOBALS['sns'];
+if(! $sns) return;
+
 try{
 $result = $sns->publish(array(
 	'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',

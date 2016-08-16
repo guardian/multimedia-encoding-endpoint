@@ -1,0 +1,20 @@
+machine:
+    services:
+        - memcached
+        
+database:
+    override:
+        - mysql -u ubuntu circle_test < tests/_files/db_schema.sql
+
+general:
+    build_dir: endpoint
+    
+dependencies:
+    pre:
+        - yes | pecl install memcache
+        - echo extension=memcache.so >> `php --ini | awk -F ':\\\\s*' '{print $2}' | grep php.ini`
+        - echo error_reporting = E_ALL ^ E_DEPRECATED >> `php --ini | awk -F ':\\\\s*' '{print $2}' | grep php.ini`
+        
+test:
+    override:
+        - cd endpoint; phpunit -c tests/phpunit.xml

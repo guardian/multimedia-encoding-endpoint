@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<phpunit bootstrap="test_bootstrap.php" convertErrorsToExceptions="false" convertNoticesToExceptions="false" convertWarningsToExceptions="false">
+    <testsuites>
+      <testsuite name="common">
+        <file>CommonTest.php</file>
+        <file>CommonDBTest.php</file>
+      </testsuite>
+    </testsuites>
+    
+    <php>
+        <!--<includePath></includePath>-->
+        <var name="DB_DSN" value="mysql:dbname=circle_test;host=127.0.0.1;port=3306" />
+        <!--<var name="DB_DSN" value="sqlite::memory"/>-->
+        <var name="DB_USER" value="ubuntu" />
+        <var name="DB_PASSWD" value="" />
+        <var name="DB_DBNAME" value="circle_test" />
+        <var name="MEMCACHE_HOST" value="127.0.0.1" />
+        <var name="MEMCACHE_PORT" value="11211" />
+    </php>
+</phpunit>

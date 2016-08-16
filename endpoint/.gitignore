@@ -1,0 +1,5 @@
+vendor/*
+phpunit.phar
+go-pear.php
+*encodings_seed.xml
+

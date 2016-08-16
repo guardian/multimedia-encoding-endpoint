@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<dataset>
+    <idmapping contentid="2" filebase="first_test_file" project="KP-1234" lastupdate="2014-01-02 15:38:06" octopus_id="123456"/>
+    <idmapping contentid="3" filebase="second_test_file" project="KP-1234" lastupdate="2014-01-05 15:38:06" octopus_id="45678"/>
+    <idmapping contentid="4" filebase="third_test_file" project="KP-12345" lastupdate="2014-02-03 15:38:06" octopus_id="90123"/>
+ <!--
+   `encodingid` int(11) NOT NULL AUTO_INCREMENT,
+  `contentid` int(11) NOT NULL,
+  `url` text NOT NULL,
+  `format` varchar(254) CHARACTER SET ascii NOT NULL,
+  `mobile` tinyint(1) NOT NULL,
+  `multirate` tinyint(1) NOT NULL,
+  `vcodec` text,
+  `acodec` text,
+  `vbitrate` int(11) DEFAULT NULL,
+  `abitrate` int(11) DEFAULT NULL,
+  `lastupdate` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `frame_width` int(11) NOT NULL,
+  `frame_height` int(11) NOT NULL,
+  `duration` float NOT NULL,
+  `file_size` int(11) NOT NULL,
+  `fcs_id` varchar(64) NOT NULL,
+  `octopus_id` int(11) NOT NULL,
+  `aspect` text NOT NULL,
+ -->
+    <encodings 
+</dataset>
