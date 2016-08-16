@@ -6,7 +6,11 @@ init();	#this function is in common.php
 
 output_supplementary_headers();
 
-$data = find_content();	#based on superglobals $_GET etc.
+try {
+	$data = find_content();	#based on superglobals $_GET etc.
+} catch(ContentErrorException $e){
+	exit;	//error message has already been output and stored
+}
 header("Content-Type: text/plain");
 
 if(array_key_exists('poster',$_GET)){

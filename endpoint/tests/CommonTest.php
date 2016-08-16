@@ -17,10 +17,11 @@ class CommonTest extends TestCase{
     
     /**
      * @runInSeparateProcess
+     * @expectedException ContentErrorException
      */
     public function testFindContentNoConfig()
     {
-        $this->expectException(ContentErrorException);
+        $_SERVER['REQUEST_URI'] = 'https://localhost/interactivevids/video.php?no_config_test';
         $result = find_content([]);
     }
 }
