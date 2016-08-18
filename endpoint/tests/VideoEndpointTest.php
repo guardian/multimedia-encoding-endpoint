@@ -13,7 +13,7 @@ class VideoEndpointTest extends TestCase{
             ]
         );
     
-        $response = $client->get('/video.php?octopusid=45678&format=video/webm&maxbitrate=4096', array('allow_redirects' => false));
+        $response = $client->get('/video.php?octopusid=45678&format=video/webm&maxbitrate=4096', array('allow_redirects' => false, 'http_errors'=>false));
 
         
         $this->assertEquals(302, $response->getStatusCode());
