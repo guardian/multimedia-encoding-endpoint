@@ -1,5 +1,10 @@
 <?php
-require dirname(__FILE__).'/vendor/autoload.php';
+$autoload_name = "/opt/vendor/autoload.php";
+if(! file_exists($autoload_name))
+        $autoload_name = dirname(__FILE__).'/vendor/autoload.php';
+if(! file_exists($autoload_name))
+        throw Exception("Not properly installed - could not find composer's autoload file in /opt or in project directory");
+require $autoload_name;
 
 use Aws\Sns\SnsClient;
 
@@ -25,6 +30,7 @@ function load_config()
 
 	return $config;
 }
+
 function init(){
 	$snsConfig = array(
 		'region' => 'eu-west-1',
