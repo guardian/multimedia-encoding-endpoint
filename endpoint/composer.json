@@ -2,7 +2,6 @@
     "require": {
         "aws/aws-sdk-php": "*",
         "amazonwebservices/aws-sdk-for-php": "*",
-        "raven/raven": "0.12.0",
-        "php-cache/memcached-adaptor": "*"
+        "raven/raven": "0.12.0"
     }
 }
