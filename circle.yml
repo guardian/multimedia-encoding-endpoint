@@ -2,7 +2,7 @@ machine:
     services:
         - memcached
     php:
-        version: 5.6.17
+        version: 7.2.7
         
 database:
     override:
@@ -19,8 +19,8 @@ dependencies:
         - sudo cp tests/_files/apache_config.conf /etc/apache2/sites-available/multimedia-endpoint.conf
         - sudo a2ensite multimedia-endpoint
         #fix dodgy libphp5.so symlink
-        - sudo rm -f /usr/lib/apache2/modules/libphp5.so
-        - sudo ln -s /opt/circleci/php/5.6.17/usr/lib/apache2/modules/libphp5.so /usr/lib/apache2/modules/libphp5.so
+        - sudo rm -f /usr/lib/apache2/modules/libphp7.so
+        - sudo ln -s /opt/circleci/php/7.2.7/usr/lib/apache2/modules/libphp7.so /usr/lib/apache2/modules/libphp7.so
         - sudo cp /home/ubuntu/multimedia-encoding-endpoint/endpoint/tests/_files/endpoint.ini /etc
         - sudo service apache2 restart
         
