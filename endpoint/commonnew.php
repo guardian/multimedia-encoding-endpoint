@@ -143,15 +143,14 @@ function find_content($config){
 			print "Cache miss\n";
 		}
 	}
-	
-	$mysqli = mysqli_connect($config['dbhost'][0], $config['dbuser'], $config['dbpass'], $config['dbname']);
-	
+		
 	$num_servers = count($config['dbhost']);
 
 	$n = 0;
 	$dbh=false;
 	while(!$dbh){
 		print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
+		$dbh = mysqli_connect($config['dbhost'][$n], $config['dbuser'], $config['dbpass'], $config['dbname']);
 		
 		/*$dbh = mysql_connect($config['dbhost'][$n],
 				$config['dbuser'],
@@ -160,6 +159,11 @@ function find_content($config){
 			print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
 			$dbh = false;
 		}*/
+		if(! mysqli_select_db($dbh, $config['dbname'])){
+			print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
+			$dbh = false;
+		}
+		
 		if($dbh) break;
 		++$n;
 		if($n>=$num_servers){
@@ -181,8 +185,292 @@ function find_content($config){
 		}
 	}
 	print "Connected to database\n\n";
+
+
+	$contentid=-1;
+	//if($_GET['file'] or $_GET['filebase']){
+	if(array_key_exists('file',$_GET)){
+		$fn=$_GET['file'];
+		if(preg_match("/[;']/",$fn)){
+			$details = array(
+			'status'=>'error',
+			'detail'=>array(
+				'error_code'=>400,
+				'error_string'=>"Invalid filespec",
+				'file_name'=>$_GET['file'],
+				'query_url'=>$_SERVER['REQUEST_URI'],
+			),
+			);
+			report_error($details);
+			header('HTTP/1.0 400 Bad Request',true,400);
+			throw new ContentErrorException("Invalid filespec");
+		}
+		$fn=mysqli_real_escape_string($dbh, $fn);
+		$q="select * from idmapping where filebase='$fn' order by lastupdate desc limit 1";
+		$result = mysqli_query($dbh, $q);
+		$idmappingdata=mysqli_fetch_assoc($result);
+
+		$contentid=$idmappingdata['contentid'];
+	//} elseif($_GET['octopusid']){
+	} elseif(array_key_exists('octopusid',$_GET)){
+		$octid=$_GET['octopusid'];
+		if(! preg_match("/^\d+$/",$octid)){
+					$details = array(
+					'status'=>'error',
+					'detail'=>array(
+							'error_code'=>400,
+							'error_string'=>"Invalid octid",
+							'octopus_id'=>$octid,
+							'query_url'=>$_SERVER['REQUEST_URI'],
+					),
+					);
+					report_error($details);
+			header('HTTP/1.0 400 Bad Request',true,400);
+			throw new ContentErrorException("Invalid octid");
+		}
+		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
+		print "debug: initial query is $q<br>";
+		$result = mysqli_query($dbh, $q);
+		print "debug: got ".mysqli_num_rows($result)." rows returned<br>";
+		$idmappingdata=mysqli_fetch_assoc($result);
+		print_r($idmappingdata);
+		print "<br>";
+		$contentid=$idmappingdata['contentid'];
+	} else {
+		$details = array(
+		   'status'=>'error',
+			'detail'=>array(
+					'error_code'=>404,
+					'error_string'=>"No search request",
+					'query_url'=>$_SERVER['REQUEST_URI'],
+			),
+			);
+			report_error($details);
+		header('HTTP/1.0 404 Not Found',true,404);
+	}
+	
+	if(! $contentid or $contentid==""){
+		$fn = "(none)";
+		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
+		
+		$details=array(
+			'status'=>'error',
+			'detail'=>array(
+				'error_code'=>404,
+				'error_string'=>'Octopus ID or filename not found',
+				'octopus_id'=>$octid,
+				'query_url'=>$_SERVER['REQUEST_URI'],
+				'file_name'=>$fn,
+			),
+		);
+		report_error($details);
+		header('HTTP/1.0 404 Not Found',true,404);
+		throw new ContentErrorException("Octopus ID or filename not found");
+	}
+	#Step 1.
+	#The FCS id uniquely identifies the version (as opposed to octopus_id uniquely identifies the title which can have multiple versions.
+	#Versions can have subtly different bitrates AND arrive at different times, so just searching versions with a sort order can return old results no matter what.
+	#So, the first step is to find the most recent FCS ID and then search with that
+	#Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
+	#So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the old behaviour (step 3)
+	$q="select fcs_id from encodings left join mime_equivalents on (real_name=encodings.format)where contentid=$contentid order by lastupdate desc";
+	print "second query is $q\n";
+	$fcsresult=mysqli_query($dbh, $q);
+
+
+	if(!$fcsresult){
+		$details = array(
+		'status'=>'error',
+		'detail'=>array(
+				'error_code'=>500,
+				'error_string'=>"No content returned",
+				'query_url'=>$_SERVER['REQUEST_URI'],
+				'db_query'=>$q,
+			),
+		);
+		report_error($details);
+		header("HTTP/1.0 500 Database query error");
+		throw new ContentErrorException("No content from database");
+	}
+	$fcsid=NULL;
+	while($fcsdata=mysqli_fetch_assoc($fcsresult)){
+		if($fcsdata['fcs_id'] and strlen($fcsdata['fcs_id'])>1){
+			$fcsid=$fcsdata['fcs_id'];
+			print "got fcsid $fcsid";
+			break;
+		}
+	}
+	#die("testing, content id=$contentid fcs id =$fcsid");
+
+	#Step 2.
+	#Look for videos ordered by descending bitrate that belong to the given ID (if we got one). If not then fall through.
+	#If none are found, AND we have allow_old set, then re-do the search over everything (and potentially return an old result)
+	if($fcsid and $fcsid!=''){
+		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
+	#	print "searching by fcsid $fcsid...\n";
+
+		$contentresult=mysqli_query($dbh, $q);
+		if(!$contentresult){
+			$details = array(
+			'status'=>'error',
+			'detail'=>array(
+					'error_code'=>500,
+					'error_string'=>"No encodings found for given title id",
+					'title_id'=>$fcsid,
+					'query_url'=>$_SERVER['REQUEST_URI'],
+					'database_query'=>$q,
+				),
+			);
+			report_error($details);
+			header("HTTP/1.0 500 Database query error");
+			throw new ContentErrorException("No encodings found for given title id");
+			print "unable to run query $q";
+		}
+	#	die("testing");
+	}
+
+	#Step 3.
+	#fall back to the old behaviour if nothing was found. this usually means an update is in progress.
+	#allow_old will enable this behaviour in the next version
+	if($fcsid==NULL or $fcsid=='' or mysqli_num_rows($contentresult)==0 ){
+	#	if(! $_GET['allow_old']){
+	#		header("HTTP/1.0 404 No content found");
+	#		exit;
+	#	}
+	#	print "old search fallback...\n";
+		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
+		if(! array_key_exists('allow_old',$_GET) and $idmappingdata){
+			   $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
+		}
+		#$q=$q." order by lastupdate desc";
+		$q=$q." order by vbitrate desc,lastupdate desc";
+	
+			$contentresult=mysqli_query($dbh, $q);
+			if(!$contentresult){
+					$details = array(
+					'status'=>'error',
+					'detail'=>array(
+							'error_code'=>500,
+							'error_string'=>"No encodings found in fallback mode",
+							'query_url'=>$_SERVER['REQUEST_URI'],
+				'database_query'=>$q,
+					),
+					);
+					report_error($details);
+					header("HTTP/1.0 500 Database query error");
+					throw new ContentErrorException("No encodings found in fallback mode");
+					print "unable to run query $q";
+			}
+	}
+
+	$have_match=0;
+
+	#$override_format="";
+	#$override_filename="";
+	
+	$data_overrides=array();
+	
+	if(array_key_exists('format',$_GET)){
+		$data_overrides = has_dodgy_m3u8_format($_GET['format']);
+	}
+	
+	print "Requested format: '".$_GET['format']."'\n";
+	$total_encodings=0;
+	while($data=mysqli_fetch_assoc($contentresult)){
+	#	var_dump($data);
+		print $_GET['format'] ." ? " .$data['format']."\n";
+		++$total_encodings;
+
+		if($data_overrides){
+			if($data['format']!=$data_overrides['format'] && $data['mime_equivalent']!=$data_overrides['format']) continue;
+		} else {
+			if(array_key_exists('format',$_GET))
+				if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
+		}
+		
+		if(array_key_exists('need_mobile',$_GET)){
+			print "checking mobile...\n";	
+			if($data['mobile']!=1) continue;
+		}
+		if(array_key_exists('minbitrate',$_GET))	
+			if($data['vbitrate']<$_GET['minbitrate']) continue;
+		if(array_key_exists('maxbitrate',$_GET))
+			if($data['vbitrate']>$_GET['maxbitrate']) continue;
+		   if(array_key_exists('minheight',$_GET))
+				 if($data['frame_height']<$_GET['minheight']) continue;
+		if(array_key_exists('maxheight',$_GET))
+					if($data['frame_height']>$_GET['maxheight']) continue;
+		if(array_key_exists('minwidth',$_GET))
+					if($data['frame_width']<$_GET['minwidth']) continue;
+		if(array_key_exists('maxwidth',$_GET))
+					if($data['frame_width']>$_GET['maxwidth']) continue;
+		$data['url']=preg_replace("/\|/","",$data['url']);
+
+		#output_supplementary_headers();
+
+		#if($_GET['poster']){	#set the poster=arg to anything to get poster image instead
+		if(preg_match("/^(.*)\.[^\.]+$/",$data['url'],$matches)){
+			$posterurl=$matches[1]."_poster.jpg";
+			$data['posterurl']=$posterurl;
+		}
+		
+		if($data_overrides and array_key_exists('filename',$data_overrides)){
+			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
+			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
+		}
+		if($mc){
+			/*third parameter is flags, fourth is expiry http://stackoverflow.com/questions/3740317/php-memcached-error/3740625*/
+			$mc->set($_SERVER['REQUEST_URI'],$data, false, $mcexpiry);
+		}
+		if(! array_key_exists('allow_insecure',$_GET)){
+			#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
+			$data['url'] = preg_replace('/^http:/','https:',$data['url']);
+		}
+		return $data;
+	}
+	/* nothing was found */
+	$mc->set($_SERVER['REQUEST_URI'],array('status'=>'notfound'),false,$mcnullexpiry);
 }
 
+function report_error($errordetails)
+{
+$errordetails['hostname'] = $_SERVER['SERVER_NAME'];
+
+if(array_key_exists('sns',$GLOBALS)){
+	$sns = $GLOBALS['sns'];
+	
+	try{
+	$result = $sns->publish(array(
+		'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
+		'Message' => json_encode($errordetails),
+		'Subject' => "Endpoint Error",
+		'MessageStructure' => 'string',
+	));
+	
+	} catch(Exception $e) {
+		error_log("Unable to notify sns: ".$e->getMessage()."\n");
+	}
+}
+
+if(array_key_exists('raven',$GLOBALS)){
+	/* do not bother reporting 404 errors to Sentry */
+	if(array_key_exists('error_code',$errordetails['detail']) && ! $errordetails['detail']['error_code'] != 404){
+		$raven_client = $GLOBALS['raven'];
+		try{ 
+			$event_id = $raven_client->getIdent(
+				$raven_client->captureMessage("Endpoint reported " + $errordetails['detail']['error_code'] + " " + $errordetails['detail']['error_string'],$errordetails)
+			);
+		} catch(Exception $e){
+			$raven_client->captureMessage(json_encode($errordetails));
+		}
+		if ($raven_client->getLastError() !== null) {
+		error_log('There was an error sending the event to Sentry: ' . $raven_client->getLastError());
+		}
+	}
+}
+
+error_log($errordetails['detail']['error_string']);
+}
 function output_supplementary_headers()
 {
 header("Access-Control-Allow-Origin: *");
