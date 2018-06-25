@@ -13,14 +13,23 @@ general:
     
 dependencies:
     pre:
-        - yes | pecl install memcache-3.0.8
+        - sudo wget https://github.com/websupport-sk/pecl-memcache/archive/NON_BLOCKING_IO_php7.zip
+        - sudo unzip NON_BLOCKING_IO_php7.zip
+        - sudo chmod 0777 /home/ubuntu/multimedia-encoding-endpoint/endpoint/pecl-memcache-NON_BLOCKING_IO_php7
+        - cd pecl-memcache-NON_BLOCKING_IO_php7 && phpize && sudo ./configure --enable-memcache --with-php-config=/opt/circleci/php/7.1.9/bin/php-config && sudo make
+        - sudo cp /home/ubuntu/multimedia-encoding-endpoint/endpoint/pecl-memcache-NON_BLOCKING_IO_php7/modules/memcache.so /opt/circleci/php/7.1.9/usr/lib/apache2/modules/
+        - sudo cp /home/ubuntu/multimedia-encoding-endpoint/endpoint/pecl-memcache-NON_BLOCKING_IO_php7/modules/memcache.so /opt/circleci/php/7.1.9/lib/php/extensions/no-debug-non-zts-20160303/memcache.so
+        - sudo chmod 0777 /opt/circleci/php/7.1.9/usr/lib/apache2/modules/memcache.so
+        - sudo chmod 0777 /opt/circleci/php/7.1.9/lib/php/extensions/no-debug-non-zts-20160303/memcache.so
+        - sudo echo 'extension=memcache.so' >/opt/circleci/php/7.1.9/etc/php.ini
+        #- yes | pecl install memcache-3.0.8
         - echo extension=memcache.so >> `php --ini | awk -F ':\\\\s*' '{print $2}' | grep php.ini`
         - echo error_reporting = E_ALL ^ E_DEPRECATED >> `php --ini | awk -F ':\\\\s*' '{print $2}' | grep php.ini`
         - sudo cp tests/_files/apache_config.conf /etc/apache2/sites-available/multimedia-endpoint.conf
         - sudo a2ensite multimedia-endpoint
         #fix dodgy libphp5.so symlink
-        - sudo rm -f /usr/lib/apache2/modules/libphp7.so
-        - sudo ln -s /opt/circleci/php/7.1.9/usr/lib/apache2/modules/libphp7.so /usr/lib/apache2/modules/libphp7.so
+        - sudo rm -f /usr/lib/apache2/modules/libphp5.so
+        - sudo ln -s /opt/circleci/php/5.6.17/usr/lib/apache2/modules/libphp5.so /usr/lib/apache2/modules/libphp5.so
         - sudo cp /home/ubuntu/multimedia-encoding-endpoint/endpoint/tests/_files/endpoint.ini /etc
         - sudo service apache2 restart
         
