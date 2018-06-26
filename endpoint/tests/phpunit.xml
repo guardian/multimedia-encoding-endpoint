@@ -11,13 +11,13 @@
     
     <php>
         <!--<includePath></includePath>-->
-        <var name="DB_HOST" value="localhost"/>
-        <var name="DB_DSN" value="mysql:dbname=circle_test;host=localhost;port=3306" />
+        <var name="DB_HOST" value="127.0.0.1"/>
+        <var name="DB_DSN" value="mysql:dbname=circle_test;host=127.0.0.1;port=3306" />
         <!--<var name="DB_DSN" value="sqlite::memory"/>-->
         <var name="DB_USER" value="ubuntu" />
         <var name="DB_PASSWD" value="testuser" />
         <var name="DB_DBNAME" value="circle_test" />
-        <var name="MEMCACHE_HOST" value="127.0.0.1" />
+        <var name="MEMCACHE_HOST" value="localhost" />
         <var name="MEMCACHE_PORT" value="11211" />
     </php>
 </phpunit>
