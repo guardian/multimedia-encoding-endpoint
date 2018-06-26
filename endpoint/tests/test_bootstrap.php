@@ -2,7 +2,8 @@
 $dbname = $GLOBALS['DB_DBNAME'];
 try {
     $pdo = new PDO($GLOBALS['DB_DSN'], $GLOBALS['DB_USER'], $GLOBALS['DB_PASSWD'] );
-} catch(PDOException $e){
+} catch(PDOException $e) {
+    print "Got exception $e when setting up database";
     $dsn = "mysql:host=".$GLOBALS['DB_HOST'].";port=3306";
     $pdo = new PDO($dsn,$GLOBALS['DB_USER'], $GLOBALS['DB_PASSWD']);
     $pdo->exec("create database `$dbname` if not exists");

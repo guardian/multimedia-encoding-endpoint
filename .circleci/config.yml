@@ -1,0 +1,55 @@
+version: 2
+jobs:
+  build:
+    working_directory: /root/multimedia-encoding-endpoint
+    parallelism: 1
+    shell: /bin/bash --login
+    environment:
+      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+    docker:
+      - image: dala0/endpointbuild:1
+      - image: circleci/mysql:5.6.35
+        environment:
+          MYSQL_DATABASE: circle_test
+          MYSQL_USER: ubuntu
+          MYSQL_PASSWORD: testuser
+      - image: memcached:1.5.8-alpine
+      
+    steps:
+    - run:
+        command: mkdir /root/multimedia-encoding-endpoint
+        working_directory: /root
+    - checkout
+    # Prepare for artifact and test results  collection equivalent to how it was done on 1.0.
+    # In many cases you can simplify this from what is generated here.
+    # 'See docs on artifact collection here https://circleci.com/docs/2.0/artifacts/'
+    - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+    # This is based on your 1.0 configuration file or project settings
+    # Dependencies
+    #   This would typically go in either a build or a build-and-test job when using workflows
+    # Restore the dependency cache
+#    - restore_cache:
+#        keys:
+#        # This branch if available
+#        - v1-dep-{{ .Branch }}-
+#        # Default branch if not
+#        - v1-dep-master-
+#        # Any branch if there are none on the default branch - this should be unnecessary if you have your default branch configured correctly
+#        - v1-dep-
+#    # This is based on your 1.0 configuration file or project settings
+#    - save_cache:
+#        key: v1-dep-{{ .Branch }}-{{ epoch }}
+#        paths:
+
+    # Test
+    - run:
+        command: phpunit -c tests/phpunit.xml
+        working_directory: /root/multimedia-encoding-endpoint/endpoint
+    - store_test_results:
+        path: /tmp/circleci-test-results
+    # Save artifacts
+    - store_artifacts:
+        path: /tmp/circleci-artifacts
+    - store_artifacts:
+        path: /tmp/circleci-test-results	
