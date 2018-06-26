@@ -2,15 +2,28 @@
 use PHPUnit\Framework\TestCase;
 require_once 'common.php';
 
-class CommonDBTest extends PHPUnit_Extensions_Database_TestCase
+class CommonDBTest extends PHPUnit\DbUnit\TestCase
 {
+
+	static private $pdo = null;
+	
+	private $conn = null;
+
     /**
      * @return PHPUnit_Extensions_Database_DB_IDatabaseConnection
      */
-    public function getConnection()
+    final public function getConnection()
     {
-        $pdo = new PDO($GLOBALS['DB_DSN'], $GLOBALS['DB_USER'], $GLOBALS['DB_PASSWD'] );
-        return $this->createDefaultDBConnection($pdo, ':memory:');
+    
+        if ($this->conn === null) {
+            if (self::$pdo == null) {
+                self::$pdo = new PDO($GLOBALS['DB_DSN'], $GLOBALS['DB_USER'], $GLOBALS['DB_PASSWD'] );
+            }
+            $this->conn = $this->createDefaultDBConnection(self::$pdo, ':memory:');
+        }
+
+        return $this->conn;
+
     }
 
     /**
