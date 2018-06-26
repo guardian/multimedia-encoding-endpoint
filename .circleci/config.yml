@@ -28,7 +28,7 @@ jobs:
     - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
     - run: yum -y install mysql
     - run:
-        command: sleep 10; mysql -h localhost -u ubuntu --protocol=tcp -D circle_test < tests/_files/db_schema.sql
+        command: sleep 14; mysql -h localhost -u ubuntu --protocol=tcp -D circle_test < tests/_files/db_schema.sql
         working_directory: /root/multimedia-encoding-endpoint/endpoint
     # This is based on your 1.0 configuration file or project settings
     # Dependencies
@@ -50,6 +50,7 @@ jobs:
         key: v1-dep-{{ .Branch }}-{{ epoch }}
         paths:
           - /opt/vendor
+    - run: /usr/sbin/nginx
     # Test
     - run:
         command: phpunit7 -c tests/phpunit.xml

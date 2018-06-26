@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<phpunit bootstrap="test_bootstrap.php" convertErrorsToExceptions="false" convertNoticesToExceptions="false" convertWarningsToExceptions="false">
+<phpunit bootstrap="test_bootstrap.php" convertErrorsToExceptions="false" convertNoticesToExceptions="false" convertWarningsToExceptions="false" processIsolation="false" backupGlobals="true" backupStaticAttributes="false">
     <testsuites>
       <testsuite name="common">
         <file>SimpleTest.php</file>
