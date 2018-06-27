@@ -36,7 +36,7 @@ provisioners:
       - if [ ! -f /etc/fedora-release ]; then sudo yum -y install epel-release; fi
       # - sudo yum -y groupinstall 'Development Tools'
       # - sudo yum -y install bzip2 python-docutils nginx awscli mysql-devel libmemcached-devel memcached-devel libxml2-devel vim curl-devel openssl-devel mlocate curl libmcrypt libmcrypt-devel
-      - sudo yum -y install yum-utils policycoreutils nginx awscli mysql wget
+      - sudo yum -y install yum-utils policycoreutils nginx awscli mysql wget initscripts
       - sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf
 
       #add in filebeat installation here. config will be done in userdata.
