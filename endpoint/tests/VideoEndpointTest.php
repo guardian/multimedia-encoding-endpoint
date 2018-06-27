@@ -5,7 +5,7 @@ class VideoEndpointTest extends TestCase{
     public function testEndpoint()
     {
         // create our http client (Guzzle)
-        $client = new GuzzleHttp\Client([ 'base_uri'=>'http://localhost:8080',
+        $client = new GuzzleHttp\Client([ 'base_uri'=>'http://localhost:80',
             'request.options' => array(
                 'exceptions' => false,
             ),
