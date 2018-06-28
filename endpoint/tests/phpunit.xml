@@ -13,7 +13,7 @@
         <!--<includePath></includePath>-->
         <var name="DB_HOST" value="127.0.0.1"/>
         <var name="DB_DSN" value="mysql:dbname=circle_test;host=127.0.0.1;port=3306" />
-        <!--<var name="DB_DSN" value="sqlite::memory"/>-->
+        <!-- Keep the user id and password in-sync with .circleci/config.yml -->
         <var name="DB_USER" value="ubuntu" />
         <var name="DB_PASSWD" value="testuser" />
         <var name="DB_DBNAME" value="circle_test" />

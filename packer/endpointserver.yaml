@@ -8,8 +8,7 @@ builders:
   - type: docker
     image: fedora:28  #keep this in sync with http://rpms.famillecollet.com/fedora/remi-release-28.rpm around line 51
     commit: true
-#built 1st version at ami-7ca0cc05. need to check how to install memcached
-#up-to-date ami at ami-f39af68a
+
 provisioners:
   - type: file
     source: packer/files/nginx.conf
@@ -34,8 +33,7 @@ provisioners:
       - if [ ! -f /etc/fedora-release ]; then sudo rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm; fi
 
       - if [ ! -f /etc/fedora-release ]; then sudo yum -y install epel-release; fi
-      # - sudo yum -y groupinstall 'Development Tools'
-      # - sudo yum -y install bzip2 python-docutils nginx awscli mysql-devel libmemcached-devel memcached-devel libxml2-devel vim curl-devel openssl-devel mlocate curl libmcrypt libmcrypt-devel
+
       - sudo yum -y install yum-utils policycoreutils nginx awscli mysql wget initscripts
       - sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf
 
