@@ -1,6 +1,6 @@
 builders:
   - type: amazon-ebs
-    ami_name: Packer build for endpointserver 8
+    ami_name: Packer build for endpointserver 9
     #get a bit more compute, we are compiling stuff
     instance_type: t2.large
     source_ami: ami-c90195b0
@@ -47,7 +47,7 @@ provisioners:
       - echo Installing PHP
       - echo ------------------------------------
 
-      - sudo yum -y --enablerepo=remi install php phpunit7 php-common php-mysql php-fpm php-pecl-memcache php-pecl-memcached
+      - sudo yum -y --enablerepo=remi,remi-php72 install php phpunit7 php-common php-mysql php-fpm php-pecl-memcache php-pecl-memcached
       - sudo mv /tmp/www.conf /etc/php-fpm.d/www.conf
 
       #install composer
