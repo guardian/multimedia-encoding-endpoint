@@ -1,0 +1,69 @@
+version: 2
+jobs:
+  build:
+    working_directory: /root/multimedia-encoding-endpoint
+    parallelism: 1
+    shell: /bin/bash --login
+    environment:
+      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+      MYSQL_PWD: testuser
+    docker:
+      - image: dala0/endpointbuild:6
+      - image: circleci/mysql:5.6.35
+        environment:
+          MYSQL_DATABASE: circle_test
+          MYSQL_USER: ubuntu
+          MYSQL_PASSWORD: testuser
+      - image: memcached:1.5.8-alpine
+      
+    steps:
+    - run:
+        command: mkdir /root/multimedia-encoding-endpoint
+        working_directory: /root
+    - checkout
+    # Prepare for artifact and test results  collection equivalent to how it was done on 1.0.
+    # In many cases you can simplify this from what is generated here.
+    # 'See docs on artifact collection here https://circleci.com/docs/2.0/artifacts/'
+    - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+    - run: yum -y install mysql
+    # This is based on your 1.0 configuration file or project settings
+    # Dependencies
+    #   This would typically go in either a build or a build-and-test job when using workflows
+    # Restore the dependency cache
+    - restore_cache:
+        keys:
+        # This branch if available
+        - v1-dep-{{ .Branch }}-
+        # Default branch if not
+        - v1-dep-master-
+        # Any branch if there are none on the default branch - this should be unnecessary if you have your default branch configured correctly
+        - v1-dep-
+    # This is based on your 1.0 configuration file or project settings
+    - run: cd /opt; php composer.phar require aws/aws-sdk-php
+    - run: cd /opt; php composer.phar require amazonwebservices/aws-sdk-for-php
+    - run: cd /opt; php composer.phar require raven/raven
+    - save_cache:
+        key: v1-dep-{{ .Branch }}-{{ epoch }}
+        paths:
+          - /opt/vendor
+    - run: source /etc/rc.d/init.d/functions && daemon --pidfile=/var/run/nginx.pid nginx -c /etc/nginx/nginx.conf
+    - run: mkdir /var/run/php-fpm
+    - run: cp /root/multimedia-encoding-endpoint/endpoint/video.php /var/www/
+    - run: cp /root/multimedia-encoding-endpoint/endpoint/common.php /var/www/
+    - run: cp /root/multimedia-encoding-endpoint/endpoint/tests/_files/endpoint2.ini /etc/endpoint.ini
+    - run: source /etc/rc.d/init.d/functions && daemon --pidfile=/var/run/php-fpm.pid php-fpm -c /etc/php-fpm.d/www.conf
+    - run:
+        command: sleep 2; mysql -h localhost -u ubuntu --protocol=tcp -D circle_test < tests/_files/db_schema.sql
+        working_directory: /root/multimedia-encoding-endpoint/endpoint
+    # Test
+    - run:
+        command: phpunit7 -c tests/phpunit.xml
+        working_directory: /root/multimedia-encoding-endpoint/endpoint
+    - store_test_results:
+        path: /tmp/circleci-test-results
+    # Save artifacts
+    - store_artifacts:
+        path: /tmp/circleci-artifacts
+    - store_artifacts:
+        path: /tmp/circleci-test-results	

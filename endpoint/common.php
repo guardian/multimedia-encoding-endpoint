@@ -129,38 +129,30 @@ function find_content($config){
 	}
 	
 	if($mc){
-		#print "Looking up in cache...\n";
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
 			if(array_key_exists('status',$data) && $data['status']=='notfound') return null;
-		#	print "Cache hit!\n";
 			if(! array_key_exists('allow_insecure',$_GET)){
 				#fix for Dig dev/Natalia to always show https urls unless specifically asked not to
 				$data['url'] = preg_replace('/^http:/','https:',$data['url']);
 			}
 			return $data;
-		} else {
-		#	print "Cache miss\n";
 		}
 	}
-	
+		
 	$num_servers = count($config['dbhost']);
 
 	$n = 0;
 	$dbh=false;
 	while(!$dbh){
-		//print "Trying to connect to database at ".$config['dbhost'][$n]." (attempt $n)\n";
-		$dbh = mysql_connect($config['dbhost'][$n],
-				$config['dbuser'],
-				$config['dbpass']);
-		if(! mysql_select_db($config['dbname'])){
-			//print "Connected to db ".$config['dbhost'][$n]." but could not get database '".$config['dbname']."'\n";
+		$dbh = mysqli_connect($config['dbhost'][$n], $config['dbuser'], $config['dbpass'], $config['dbname']);
+		if(! mysqli_select_db($dbh, $config['dbname'])){
 			$dbh = false;
 		}
+		
 		if($dbh) break;
 		++$n;
 		if($n>=$num_servers){
-			//print "Not able to connect to any database servers.\n";
 			$fn="(none)";
 			if(array_key_exists('file',$_GET)) $fn=$_GET['file'];
 			$details = array(
@@ -177,10 +169,9 @@ function find_content($config){
 			throw new ContentErrorException("Not able to connect to any database servers");;
 		}
 	}
-	#print "Connected to database\n\n";
 
 	$contentid=-1;
-	//if($_GET['file'] or $_GET['filebase']){
+
 	if(array_key_exists('file',$_GET)){
 		$fn=$_GET['file'];
 		if(preg_match("/[;']/",$fn)){
@@ -197,13 +188,13 @@ function find_content($config){
 			header('HTTP/1.0 400 Bad Request',true,400);
 			throw new ContentErrorException("Invalid filespec");
 		}
-		$fn=mysql_real_escape_string($fn);
+		$fn=mysqli_real_escape_string($dbh, $fn);
 		$q="select * from idmapping where filebase='$fn' order by lastupdate desc limit 1";
-		$result=mysql_query($q);
-		$idmappingdata=mysql_fetch_assoc($result);
+		$result = mysqli_query($dbh, $q);
+		$idmappingdata=mysqli_fetch_assoc($result);
 
 		$contentid=$idmappingdata['contentid'];
-	//} elseif($_GET['octopusid']){
+
 	} elseif(array_key_exists('octopusid',$_GET)){
 		$octid=$_GET['octopusid'];
 		if(! preg_match("/^\d+$/",$octid)){
@@ -221,12 +212,11 @@ function find_content($config){
 			throw new ContentErrorException("Invalid octid");
 		}
 		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
-		#print "debug: initial query is $q<br>";
-		$result=mysql_query($q);
-		#print "debug: got ".mysql_num_rows($result)." rows returned<br>";
-		$idmappingdata=mysql_fetch_assoc($result);
-		#print_r($idmappingdata);
-		#print "<br>";
+
+		$result = mysqli_query($dbh, $q);
+
+		$idmappingdata=mysqli_fetch_assoc($result);
+
 		$contentid=$idmappingdata['contentid'];
 	} else {
 		$details = array(
@@ -240,7 +230,7 @@ function find_content($config){
 			report_error($details);
 		header('HTTP/1.0 404 Not Found',true,404);
 	}
-
+	
 	if(! $contentid or $contentid==""){
 		$fn = "(none)";
 		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
@@ -266,8 +256,9 @@ function find_content($config){
 	#Some entries may not have FCS IDs, and if uncaught this leads to all such entries being treated as the same title.
 	#So, we iterate across them all and get the first non-empty one. If no ids are found then we must fall back to the old behaviour (step 3)
 	$q="select fcs_id from encodings left join mime_equivalents on (real_name=encodings.format)where contentid=$contentid order by lastupdate desc";
-	#print "second query is $q\n";
-	$fcsresult=mysql_query($q);
+	//print "second query is $q\n";
+	$fcsresult=mysqli_query($dbh, $q);
+
 
 	if(!$fcsresult){
 		$details = array(
@@ -284,10 +275,10 @@ function find_content($config){
 		throw new ContentErrorException("No content from database");
 	}
 	$fcsid=NULL;
-	while($fcsdata=mysql_fetch_assoc($fcsresult)){
+	while($fcsdata=mysqli_fetch_assoc($fcsresult)){
 		if($fcsdata['fcs_id'] and strlen($fcsdata['fcs_id'])>1){
 			$fcsid=$fcsdata['fcs_id'];
-	#		print "got fcsid $fcsid";
+
 			break;
 		}
 	}
@@ -298,9 +289,8 @@ function find_content($config){
 	#If none are found, AND we have allow_old set, then re-do the search over everything (and potentially return an old result)
 	if($fcsid and $fcsid!=''){
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where fcs_id='$fcsid' order by vbitrate desc";
-	#	print "searching by fcsid $fcsid...\n";
 
-		$contentresult=mysql_query($q);
+		$contentresult=mysqli_query($dbh, $q);
 		if(!$contentresult){
 			$details = array(
 			'status'=>'error',
@@ -315,7 +305,7 @@ function find_content($config){
 			report_error($details);
 			header("HTTP/1.0 500 Database query error");
 			throw new ContentErrorException("No encodings found for given title id");
-			#print "unable to run query $q";
+			print "unable to run query $q";
 		}
 	#	die("testing");
 	}
@@ -323,12 +313,8 @@ function find_content($config){
 	#Step 3.
 	#fall back to the old behaviour if nothing was found. this usually means an update is in progress.
 	#allow_old will enable this behaviour in the next version
-	if($fcsid==NULL or $fcsid=='' or mysql_num_rows($contentresult)==0 ){
-	#	if(! $_GET['allow_old']){
-	#		header("HTTP/1.0 404 No content found");
-	#		exit;
-	#	}
-	#	print "old search fallback...\n";
+	if($fcsid==NULL or $fcsid=='' or mysqli_num_rows($contentresult)==0 ){
+
 		$q="select * from encodings left join mime_equivalents on (real_name=encodings.format) where contentid=$contentid";
 		if(! array_key_exists('allow_old',$_GET) and $idmappingdata){
 			   $q=$q." and lastupdate>='".$idmappingdata['lastupdate']."'";
@@ -336,7 +322,7 @@ function find_content($config){
 		#$q=$q." order by lastupdate desc";
 		$q=$q." order by vbitrate desc,lastupdate desc";
 	
-			$contentresult=mysql_query($q);
+			$contentresult=mysqli_query($dbh, $q);
 			if(!$contentresult){
 					$details = array(
 					'status'=>'error',
@@ -350,10 +336,9 @@ function find_content($config){
 					report_error($details);
 					header("HTTP/1.0 500 Database query error");
 					throw new ContentErrorException("No encodings found in fallback mode");
-					#print "unable to run query $q";
+
 			}
 	}
-
 
 	$have_match=0;
 
@@ -366,11 +351,10 @@ function find_content($config){
 		$data_overrides = has_dodgy_m3u8_format($_GET['format']);
 	}
 	
-	#print "Requested format: '".$_GET['format']."'\n";
+
 	$total_encodings=0;
-	while($data=mysql_fetch_assoc($contentresult)){
-	#	var_dump($data);
-	#	print $_GET['format'] ." ? " .$data['format']."\n";
+	while($data=mysqli_fetch_assoc($contentresult)){
+
 		++$total_encodings;
 
 		if($data_overrides){
@@ -381,7 +365,7 @@ function find_content($config){
 		}
 		
 		if(array_key_exists('need_mobile',$_GET)){
-			#print "checking mobile...\n";	
+			//print "checking mobile...\n";	
 			if($data['mobile']!=1) continue;
 		}
 		if(array_key_exists('minbitrate',$_GET))	
@@ -407,7 +391,6 @@ function find_content($config){
 		}
 		
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
-			#error_log("debug: replacing filename in ".$data['url']." with ".$data_overrides['filename']."\n");
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
 		if($mc){
@@ -463,7 +446,6 @@ if(array_key_exists('raven',$GLOBALS)){
 
 error_log($errordetails['detail']['error_string']);
 }
-
 function output_supplementary_headers()
 {
 header("Access-Control-Allow-Origin: *");
