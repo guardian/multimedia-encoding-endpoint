@@ -1,7 +1,6 @@
 builders:
   - type: amazon-ebs
-    ami_name: Packer build for endpointserver 9
-    #get a bit more compute, we are compiling stuff
+    ami_name: Packer build for endpointserver 12
     instance_type: t2.large
     source_ami: ami-c90195b0
     ssh_username: ec2-user
@@ -34,7 +33,8 @@ provisioners:
 
       - if [ ! -f /etc/fedora-release ]; then sudo yum -y install epel-release; fi
 
-      - sudo yum -y install yum-utils policycoreutils nginx awscli mysql wget initscripts
+      - sudo yum -y install yum-utils policycoreutils nginx awscli mysql wget initscripts awscli python-pip unzip
+      - sudo pip install awscli
       - sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf
 
       #add in filebeat installation here. config will be done in userdata.
@@ -47,7 +47,7 @@ provisioners:
       - echo Installing PHP
       - echo ------------------------------------
 
-      - sudo yum -y --enablerepo=remi,remi-php72 install php phpunit7 php-common php-mysql php-fpm php-pecl-memcache php-pecl-memcached
+      - if [ -f /etc/fedora-release ]; then sudo yum -y --enablerepo=remi install php phpunit7 php-common php-mysql php-fpm php-pecl-memcache php-pecl-memcached; else sudo yum -y --enablerepo=remi,remi-php72 install php phpunit7 php-common php-mysql php-fpm php-pecl-memcache php-pecl-memcached; fi
       - sudo mv /tmp/www.conf /etc/php-fpm.d/www.conf
 
       #install composer
