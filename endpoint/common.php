@@ -419,7 +419,7 @@ if(array_key_exists('sns',$GLOBALS)){
 
 	try{
 	$result = $sns->publish(array(
-        'TopicArn' => $config['topic'],
+        	'TopicArn' => $config['topic'],
 		'Message' => json_encode($errordetails),
 		'Subject' => "Endpoint Error",
 		'MessageStructure' => 'string',
