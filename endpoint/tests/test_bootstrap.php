@@ -20,6 +20,7 @@ fwrite($fh,"\n");
 fwrite($fh,"[cache]\n");
 fwrite($fh,"memcache_host = \"".$GLOBALS['MEMCACHE_HOST']."\"\n");
 fwrite($fh,"memcache_port = 11211\n");
+fwrite($fh,"topic = TestARN\n");
 fclose($fh);
 
 $schemafile = dirname(__FILE__)."/_files/db_schema.sql";

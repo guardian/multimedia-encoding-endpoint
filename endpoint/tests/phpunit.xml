@@ -6,6 +6,7 @@
         <file>SimpleTest.php</file>
         <file>CommonDBTest.php</file>
         <file>VideoEndpointTest.php</file>
+        <file>CommonConfigTest.php</file>
       </testsuite>
     </testsuites>
     
@@ -19,5 +20,6 @@
         <var name="DB_DBNAME" value="circle_test" />
         <var name="MEMCACHE_HOST" value="localhost" />
         <var name="MEMCACHE_PORT" value="11211" />
+        <var name="TOPIC" value="TestARN" />
     </php>
 </phpunit>
