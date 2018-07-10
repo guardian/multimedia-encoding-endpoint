@@ -27,6 +27,7 @@ function load_config()
 	if(array_key_exists('DB_DBNAME',$GLOBALS)) $config['dbname'] = $GLOBALS['DB_DBNAME'];
 	if(array_key_exists('MEMCACHE_HOST',$GLOBALS)) $config['memcache_host'] = $GLOBALS['MEMCACHE_HOST'];
 	if(array_key_exists('MEMCACHE_PORT',$GLOBALS)) $config['memcache_port'] = $GLOBALS['MEMCACHE_PORT'];
+    if(array_key_exists('TOPIC',$GLOBALS)) $config['topic'] = $GLOBALS['TOPIC'];
 
 	return $config;
 }
@@ -413,10 +414,12 @@ $errordetails['hostname'] = $_SERVER['SERVER_NAME'];
 
 if(array_key_exists('sns',$GLOBALS)){
 	$sns = $GLOBALS['sns'];
-	
+
+    $config = load_config();
+
 	try{
 	$result = $sns->publish(array(
-		'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
+		'TopicArn' => $config['topic'],
 		'Message' => json_encode($errordetails),
 		'Subject' => "Endpoint Error",
 		'MessageStructure' => 'string',
