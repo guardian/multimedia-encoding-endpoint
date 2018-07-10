@@ -413,7 +413,7 @@ $errordetails['hostname'] = $_SERVER['SERVER_NAME'];
 
 if(array_key_exists('sns',$GLOBALS)){
 	$sns = $GLOBALS['sns'];
-    wrong
+
 	try{
 	$result = $sns->publish(array(
 		'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
