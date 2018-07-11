@@ -413,10 +413,12 @@ $errordetails['hostname'] = $_SERVER['SERVER_NAME'];
 
 if(array_key_exists('sns',$GLOBALS)){
 	$sns = $GLOBALS['sns'];
-	
+
+    $config = load_config();
+
 	try{
 	$result = $sns->publish(array(
-		'TopicArn' => 'arn:aws:sns:eu-west-1:855023211239:EndpointNotifications',
+        	'TopicArn' => $config['topic'],
 		'Message' => json_encode($errordetails),
 		'Subject' => "Endpoint Error",
 		'MessageStructure' => 'string',
