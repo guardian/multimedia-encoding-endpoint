@@ -41,7 +41,7 @@ jobs:
         - v1-dep-
     # This is based on your 1.0 configuration file or project settings
     - run: cd /opt; php composer.phar require aws/aws-sdk-php
-    - run: cd /opt; php composer.phar require raven/raven
+    - run: cd /opt; php composer.phar require sentry/sentry
     - save_cache:
         key: v1-dep-{{ .Branch }}-{{ epoch }}
         paths:
