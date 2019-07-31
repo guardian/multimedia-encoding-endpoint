@@ -44,6 +44,7 @@ function init(){
 
         if(array_key_exists('dsn',$config)){	
 		$client = new Raven_Client($config['dsn']);
+    $client->setRelease('1');
 		$error_handler = new Raven_ErrorHandler($client);
 		$error_handler->registerExceptionHandler();
 		$error_handler->registerErrorHandler();
