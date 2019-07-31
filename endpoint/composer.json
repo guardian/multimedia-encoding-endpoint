@@ -1,6 +1,6 @@
 {
     "require": {
         "aws/aws-sdk-php": "*",
-        "sentry/sentry": "*"
+        "sentry/sentry": "1.10.0"
     }
 }
