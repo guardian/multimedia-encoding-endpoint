@@ -7,21 +7,26 @@ if(! file_exists($autoload_name))
 require $autoload_name;
 
 use Aws\Sns\SnsClient;
+use Aws\Kinesis\KinesisClient;
+use Aws\Exception\AwsException;
 
 /*stop AWS complaining*/
 date_default_timezone_set('UTC');
+
+$GLOBALS['kinesis_stream_name'] = "encodings_endpoint_data";
+$GLOBALS['actual_link'] = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
 
 function load_config()
 {
 	$config=NULL;
 	if(file_exists('endpoint.ini'))
 		$config = parse_ini_file('endpoint.ini');
-		
+
 	if(! $config && file_exists('/etc/endpoint.ini'))
 		$config = parse_ini_file('/etc/endpoint.ini');
-		
+
 	if(! $config) $config=[];
-	if(array_key_exists('DB_HOST',$GLOBALS)) $config['dbhost'] = [ $GLOBALS['DB_HOST'] ];	
+	if(array_key_exists('DB_HOST',$GLOBALS)) $config['dbhost'] = [ $GLOBALS['DB_HOST'] ];
 	if(array_key_exists('DB_USER',$GLOBALS)) $config['dbuser'] = $GLOBALS['DB_USER'];
 	if(array_key_exists('DB_PASSWD',$GLOBALS)) $config['dbpass'] = $GLOBALS['DB_PASSWD'];
 	if(array_key_exists('DB_DBNAME',$GLOBALS)) $config['dbname'] = $GLOBALS['DB_DBNAME'];
@@ -39,10 +44,10 @@ function init(){
 	);
 
 	$GLOBALS['sns'] = SnsClient::factory($snsConfig);
-	
+
 	$config = load_config();
 
-        if(array_key_exists('dsn',$config)){	
+        if(array_key_exists('dsn',$config)){
 		$client = new Raven_Client($config['dsn']);
     $client->setRelease('1');
 		$error_handler = new Raven_ErrorHandler($client);
@@ -87,7 +92,7 @@ function find_content($config){
 	//if(! $config or config==[]){
 		$fn = "(none)";
 		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
-		
+
 		$details = array(
 			'status'=>'error',
 			'detail'=>array(
@@ -98,7 +103,8 @@ function find_content($config){
 			),
 			);
 		report_error($details);
-		header('HTTP/1.0 500 Server Config Error',true,500);
+    header('HTTP/1.0 500 Server Config Error',true,500);
+    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
 		throw new ContentErrorException("No config file available");
 	}
 
@@ -117,7 +123,7 @@ function find_content($config){
 		$mcnullexpiry = 10;	#in seconds
 		if(array_key_exists('memcache_notfound_expiry',$config)){
 			$mcnullexpiry = intval($config['memcache_notfound_expiry']);
-		}		
+		}
 	} else {
 		$mc = null;
 		$details = array (
@@ -128,7 +134,7 @@ function find_content($config){
 		);
 		report_error($details);
 	}
-	
+
 	if($mc){
 		$data = $mc->get($_SERVER['REQUEST_URI']);
 		if($data){
@@ -140,7 +146,7 @@ function find_content($config){
 			return $data;
 		}
 	}
-		
+
 	$num_servers = count($config['dbhost']);
 
 	$n = 0;
@@ -150,7 +156,7 @@ function find_content($config){
 		if(! mysqli_select_db($dbh, $config['dbname'])){
 			$dbh = false;
 		}
-		
+
 		if($dbh) break;
 		++$n;
 		if($n>=$num_servers){
@@ -166,7 +172,8 @@ function find_content($config){
 			),
 			);
 			report_error($details);
-			header('HTTP/1.0 500 Bad Request',true,500);
+      header('HTTP/1.0 500 Bad Request Bad Request',true,500);
+      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
 			throw new ContentErrorException("Not able to connect to any database servers");;
 		}
 	}
@@ -186,7 +193,8 @@ function find_content($config){
 			),
 			);
 			report_error($details);
-			header('HTTP/1.0 400 Bad Request',true,400);
+      header('HTTP/1.0 400 Bad Request',true,400);
+      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":400, "php_headers":'.json_encode(headers_list()).'}', null);
 			throw new ContentErrorException("Invalid filespec");
 		}
 		$fn=mysqli_real_escape_string($dbh, $fn);
@@ -209,7 +217,8 @@ function find_content($config){
 					),
 					);
 					report_error($details);
-			header('HTTP/1.0 400 Bad Request',true,400);
+      header('HTTP/1.0 400 Bad Request',true,400);
+      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":400, "php_headers":'.json_encode(headers_list()).'}', null);
 			throw new ContentErrorException("Invalid octid");
 		}
 		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
@@ -229,13 +238,14 @@ function find_content($config){
 			),
 			);
 			report_error($details);
-		header('HTTP/1.0 404 Not Found',true,404);
+    header('HTTP/1.0 404 Not Found',true,404);
+    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":404, "php_headers":'.json_encode(headers_list()).'}', null);
 	}
-	
+
 	if(! $contentid or $contentid==""){
 		$fn = "(none)";
 		if(array_key_exists('file',$_GET)) $fn =$_GET['file'];
-		
+
 		$details=array(
 			'status'=>'error',
 			'detail'=>array(
@@ -247,7 +257,8 @@ function find_content($config){
 			),
 		);
 		report_error($details);
-		header('HTTP/1.0 404 Not Found',true,404);
+    header('HTTP/1.0 404 Not Found',true,404);
+    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":404, "php_headers":'.json_encode(headers_list()).'}', null);
 		throw new ContentErrorException("Octopus ID or filename not found");
 	}
 	#Step 1.
@@ -272,7 +283,8 @@ function find_content($config){
 			),
 		);
 		report_error($details);
-		header("HTTP/1.0 500 Database query error");
+    header("HTTP/1.0 500 Database query error");
+    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
 		throw new ContentErrorException("No content from database");
 	}
 	$fcsid=NULL;
@@ -304,9 +316,10 @@ function find_content($config){
 				),
 			);
 			report_error($details);
-			header("HTTP/1.0 500 Database query error");
+      header("HTTP/1.0 500 Database query error");
+      $output_message = "unable to run query $q";
+      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', $output_message);
 			throw new ContentErrorException("No encodings found for given title id");
-			print "unable to run query $q";
 		}
 	#	die("testing");
 	}
@@ -322,7 +335,7 @@ function find_content($config){
 		}
 		#$q=$q." order by lastupdate desc";
 		$q=$q." order by vbitrate desc,lastupdate desc";
-	
+
 			$contentresult=mysqli_query($dbh, $q);
 			if(!$contentresult){
 					$details = array(
@@ -335,7 +348,8 @@ function find_content($config){
 					),
 					);
 					report_error($details);
-					header("HTTP/1.0 500 Database query error");
+          header("HTTP/1.0 500 Database query error");
+          write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
 					throw new ContentErrorException("No encodings found in fallback mode");
 
 			}
@@ -345,13 +359,13 @@ function find_content($config){
 
 	#$override_format="";
 	#$override_filename="";
-	
+
 	$data_overrides=array();
-	
+
 	if(array_key_exists('format',$_GET)){
 		$data_overrides = has_dodgy_m3u8_format($_GET['format']);
 	}
-	
+
 
 	$total_encodings=0;
 	while($data=mysqli_fetch_assoc($contentresult)){
@@ -364,12 +378,12 @@ function find_content($config){
 			if(array_key_exists('format',$_GET))
 				if($data['format']!=$_GET['format'] && $data['mime_equivalent']!=$_GET['format']) continue;
 		}
-		
+
 		if(array_key_exists('need_mobile',$_GET)){
-			//print "checking mobile...\n";	
+			//print "checking mobile...\n";
 			if($data['mobile']!=1) continue;
 		}
-		if(array_key_exists('minbitrate',$_GET))	
+		if(array_key_exists('minbitrate',$_GET))
 			if($data['vbitrate']<$_GET['minbitrate']) continue;
 		if(array_key_exists('maxbitrate',$_GET))
 			if($data['vbitrate']>$_GET['maxbitrate']) continue;
@@ -390,7 +404,7 @@ function find_content($config){
 			$posterurl=$matches[1]."_poster.jpg";
 			$data['posterurl']=$posterurl;
 		}
-		
+
 		if($data_overrides and array_key_exists('filename',$data_overrides)){
 			$data['url'] = preg_replace('/\/[^\/]+$/',"/".$data_overrides['filename'],$data['url']);
 		}
@@ -404,8 +418,10 @@ function find_content($config){
 		}
 		return $data;
 	}
-	/* nothing was found */
-	$mc->set($_SERVER['REQUEST_URI'],array('status'=>'notfound'),false,$mcnullexpiry);
+  if($mc){
+	   /* nothing was found */
+	   $mc->set($_SERVER['REQUEST_URI'],array('status'=>'notfound'),false,$mcnullexpiry);
+  }
 }
 
 function report_error($errordetails)
@@ -424,7 +440,7 @@ if(array_key_exists('sns',$GLOBALS)){
 		'Subject' => "Endpoint Error",
 		'MessageStructure' => 'string',
 	));
-	
+
 	} catch(Exception $e) {
 		error_log("Unable to notify sns: ".$e->getMessage()."\n");
 	}
@@ -434,7 +450,7 @@ if(array_key_exists('raven',$GLOBALS)){
 	/* do not bother reporting 404 errors to Sentry */
 	if(array_key_exists('error_code',$errordetails['detail']) && ! $errordetails['detail']['error_code'] != 404){
 		$raven_client = $GLOBALS['raven'];
-		try{ 
+		try{
 			$event_id = $raven_client->getIdent(
 				$raven_client->captureMessage("Endpoint reported " + $errordetails['detail']['error_code'] + " " + $errordetails['detail']['error_string'],$errordetails)
 			);
@@ -453,4 +469,29 @@ function output_supplementary_headers()
 {
 header("Access-Control-Allow-Origin: *");
 }
+
+function write_to_kinesis($name, $content, $output_message){
+
+  if ($output_message) {
+    print $output_message;
+  }
+
+  $kinesisClient = new Aws\Kinesis\KinesisClient([
+      'profile' => 'default',
+      'version' => '2013-12-02',
+      'region' => 'eu-west-1'
+  ]);
+
+  try {
+      $result = $kinesisClient->PutRecord([
+          'Data' => $content,
+          'StreamName' => $name,
+          'PartitionKey' => md5($content)
+      ]);
+  } catch (AwsException $e) {
+      echo $e->getMessage();
+      echo "\n";
+  }
+}
+
 ?>
