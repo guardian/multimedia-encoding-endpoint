@@ -13,7 +13,6 @@ use Aws\Exception\AwsException;
 /*stop AWS complaining*/
 date_default_timezone_set('UTC');
 
-$GLOBALS['kinesis_stream_name'] = "encodings_endpoint_data";
 $GLOBALS['actual_link'] = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
 
 function load_config()
@@ -56,6 +55,10 @@ function init(){
 		$error_handler->registerShutdownFunction();
 		$GLOBALS['raven'] = $client;
 	}
+
+  if(array_key_exists('stream_name',$config)){
+    $GLOBALS['kinesis_stream_name'] = $config['stream_name'];
+  }
 }
 
 #There is a bug in iOS clients whereby rather than using the _actual_ redirected m3u8 URL to locate submanifests
