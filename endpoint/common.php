@@ -480,9 +480,9 @@ function write_to_kinesis($name, $content, $output_message){
   }
 
   $kinesisClient = new Aws\Kinesis\KinesisClient([
-      'profile' => 'default',
       'version' => '2013-12-02',
-      'region' => 'eu-west-1'
+      'region' => 'eu-west-1',
+      'scheme' => 'https'
   ]);
 
   try {
