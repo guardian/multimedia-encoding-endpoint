@@ -4,9 +4,6 @@ builders:
     instance_type: t2.large
     source_ami: ami-c90195b0
     ssh_username: ec2-user
-  - type: docker
-    image: fedora:28  #keep this in sync with http://rpms.famillecollet.com/fedora/remi-release-28.rpm around line 51
-    commit: true
 
 provisioners:
   - type: file

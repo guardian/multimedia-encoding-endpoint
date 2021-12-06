@@ -1,0 +1,24 @@
+#This build simply generates an AMI for an updated Amazon linux instance with SELinux enabled.
+#Enabling SELinux requires that the root filesystem be re-labelled on the next boot, so it takes
+#~30-60seconds longer than normal to start up.
+#The output from this build should be used in endpointserver-amz.yaml.
+builders:
+  - type: amazon-ebs
+    ami_name: Amazon linux with SELinux enabled
+    instance_type: t2.micro
+    source_ami: ami-04dd4500af104442f
+    ssh_username: ec2-user
+
+provisioners:
+  - type: file
+    source: packer/files/grub_default.cfg
+    destination: /tmp/grub_default.cfg
+
+  - type: shell
+    inline:
+      - sudo yum -y update
+      - sudo yum -y install selinux-policy selinux-policy-targeted policycoreutils-python
+      - sudo mv /tmp/grub_default.cfg /etc/default/grub
+      - sudo bash -c "echo SELINUX=enforcing > /etc/selinux/config"
+      - sudo bash -c "echo SELINUXTYPE=targeted >> /etc/selinux/config"
+      - sudo touch /.autorelabel
