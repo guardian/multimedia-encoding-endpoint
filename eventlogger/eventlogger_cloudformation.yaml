@@ -27,8 +27,9 @@ Resources:
       Code:
         S3Bucket: !Ref DeploymentBucket
         S3Key: !Sub ${Stack}/${App}/${Stage}/bundle.zip
-#      Environment:
-#        Variables:
+      Environment:
+        Variables:
+          OUTPUT_DDB_TABLE_NAME: !Ref EndpointEventsTable
       Handler: eventlogger
       FunctionName: !Sub endpoint-eventlogger-${Stage}
       MemorySize: 128
@@ -87,7 +88,7 @@ Resources:
           Action: sts:AssumeRole
       Path: /
       Policies:
-        - PolicyName: AccessBucket
+        - PolicyName: EndpointEventLoggerPolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -102,7 +103,38 @@ Resources:
                   - !GetAtt EndpointEventsStream.Arn
               - Effect: Allow
                 Action:
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${EndpointEventsTable}
+              - Effect: Allow
+                Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+
+  EndpointEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: uid
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: uid
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+#      ProvisionedThroughput:
+#        WriteCapacityUnits: 1
+#        ReadCapacityUnits: 1
+      Tags:
+        - Key: App
+          Value: !Sub ${App}-webapp
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
