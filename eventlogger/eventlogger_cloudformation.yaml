@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Relays events from a kinesis stream into DynamoDB
+Parameters:
+  App:
+    Type: String
+    Description: Application identifier for RiffRaff
+    Default: encodingsendpoint
+  Stack:
+    Type: String
+    Description: Stack identifier for RiffRaff
+    Default: multimedia
+  Stage:
+    Type: String
+    AllowedValues:
+      - CODE
+      - DEV
+      - PROD
+    Description: Deployment stage
+  DeploymentBucket:
+    Type: String
+    Description: Name of the bucket where the deployment is stored
+
+Resources:
+  EventLoggerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: !Sub ${Stack}/${App}/${Stage}/bundle.zip
+      Environment:
+        Variables:
+          OUTPUT_DDB_TABLE_NAME: !Ref EndpointEventsTable
+      Handler: eventlogger
+      FunctionName: !Sub endpoint-eventlogger-${Stage}
+      MemorySize: 128
+      Role: !GetAtt EventLoggerLambdaRole.Arn
+      Runtime: go1.x
+      Timeout: 2
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+
+  KinesisLambdaTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      BisectBatchOnFunctionError: true
+      Enabled: true
+      EventSourceArn: !GetAtt EndpointEventsStream.Arn
+      FunctionName: !Ref EventLoggerLambda
+      MaximumBatchingWindowInSeconds: 30
+      StartingPosition: TRIM_HORIZON
+
+  EndpointEventsStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      RetentionPeriodHours: 24
+      ShardCount: 2
+      Tags:
+        - Key: App
+          Value: !Ref App
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
+
+  KinesisInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref EventLoggerLambda
+      Principal: kinesis.amazonaws.com
+      SourceArn: !GetAtt EndpointEventsStream.Arn
+
+  EventLoggerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: EndpointEventLoggerPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                - kinesis:GetRecord
+                - "kinesis:GetRecords"
+                - "kinesis:GetShardIterator"
+                - "kinesis:DescribeStream"
+                - "kinesis:ListStreams"
+                Resource:
+                  - !GetAtt EndpointEventsStream.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${EndpointEventsTable}
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  EndpointEventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: uid
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: uid
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+#      ProvisionedThroughput:
+#        WriteCapacityUnits: 1
+#        ReadCapacityUnits: 1
+      Tags:
+        - Key: App
+          Value: !Sub ${App}-webapp
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Stage
+          Value: !Ref Stage
