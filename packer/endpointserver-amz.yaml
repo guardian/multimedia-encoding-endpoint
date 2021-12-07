@@ -1,0 +1,38 @@
+builders:
+  - type: amazon-ebs
+    ami_name: Packer build for endpointserver 14
+    instance_type: t2.large
+    source_ami: ami-03da8f1f9ce4ba83c
+    ssh_username: ec2-user
+
+provisioners:
+  - type: file
+    source: packer/files/nginx.conf
+    destination: /tmp/nginx.conf
+
+  - type: file
+    source: packer/files/www.conf
+    destination: /tmp/www.conf
+
+  - type: file
+    source: packer/files/install_composer.sh
+    destination: /tmp/install_composer.sh
+
+  - type: shell
+    inline:
+      - sudo yum -y update
+      - sudo amazon-linux-extras install php7.4 nginx1 -y
+      - sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf
+      - sudo mv /tmp/www.conf /etc/php-fpm.d/www.conf
+      - chmod a+x /tmp/install_composer.sh
+      - sudo bash -c "cd /opt; /tmp/install_composer.sh"
+      - echo Setting up selinux security context
+      - sudo mkdir -p /var/www
+      - if [ "`/usr/sbin/getenforce`" == "Enforcing" ]; then declare -x HAVE_SELINUX=1; else declare -x HAVE_SELINUX=0; fi
+      - if [ "$HAVE_SELINUX" == "1" ]; then echo SELinux detected, setting up; else echo SELinux not detected, leaving; fi
+      - if [ "$HAVE_SELINUX" == "1" ]; then sudo /usr/sbin/restorecon -R /var/www; fi
+      - if [ "$HAVE_SELINUX" == "1" ]; then sudo setsebool -P httpd_can_network_connect 1; fi
+      - echo Disabling nginx until configured by ASG
+      - if [ ! -d "/opt" ]; then mkdir /opt; fi
+      #this will get re-enabled by the userdata
+      - sudo systemctl disable nginx
