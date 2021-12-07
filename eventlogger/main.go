@@ -71,7 +71,14 @@ func HandleIndividualRecord(ctx context.Context, evt events.KinesisEventRecord) 
 	return content.asWriteRequest()
 }
 
-func doBatchWrite(ctx context.Context, ddbClient *dynamodb.DynamoDB, tableName string, putRequests []*dynamodb.WriteRequest) error {
+func doBatchWrite(ctx context.Context, ddbClient *dynamodb.DynamoDB, tableName string, incomingRequests []*dynamodb.WriteRequest, recordCount int) error {
+	var putRequests []*dynamodb.WriteRequest
+	if recordCount < len(incomingRequests) {
+		putRequests = incomingRequests[0:recordCount]
+	} else {
+		putRequests = incomingRequests
+	}
+
 	req := &dynamodb.BatchWriteItemInput{
 		RequestItems: map[string][]*dynamodb.WriteRequest{
 			tableName: putRequests,
@@ -85,7 +92,7 @@ func doBatchWrite(ctx context.Context, ddbClient *dynamodb.DynamoDB, tableName s
 		return err
 	}
 	if items, haveItems := response.UnprocessedItems[tableName]; haveItems {
-		return doBatchWrite(ctx, ddbClient, tableName, items)
+		return doBatchWrite(ctx, ddbClient, tableName, items, len(items))
 	}
 	return nil
 }
@@ -103,21 +110,31 @@ func HandleRequest(ctx context.Context, evt events.KinesisEvent) error {
 	log.Printf("INFO received %d records", len(evt.Records))
 	putRequests := make([]*dynamodb.WriteRequest, len(evt.Records))
 
+	processedRecordCount := 0
+	var deferredError error
+
 	for i, rec := range evt.Records {
 		rec, err := HandleIndividualRecord(ctx, rec)
 		if err != nil {
-			return err
+			log.Printf("ERROR Bailing out on processing due to %s. %d records have been processed", err, processedRecordCount)
+			deferredError = err
+			break
 		}
 		putRequests[i] = rec
+		processedRecordCount += 1
 	}
 
-	log.Printf("INFO Writing %d records to dynamo", len(putRequests))
+	log.Printf("INFO Writing %d records to dynamo", processedRecordCount)
 
-	err := doBatchWrite(ctx, ddbClient, tableName, putRequests)
+	err := doBatchWrite(ctx, ddbClient, tableName, putRequests, processedRecordCount)
 	if err != nil {
 		log.Printf("ERROR Could not write to dynamodb: %s", err)
 	}
 
+	if deferredError != nil {
+		log.Printf("ERROR We exited early due to a deferred error, records processed up to this point have now been saved")
+		return deferredError
+	}
 	log.Printf("All done.")
 	return nil
 }
