@@ -1,5 +1,8 @@
 all: bundle.zip
 
+test_push_kinesis:
+	make -C test_push_kinesis
+
 eventlogger: main.go
 	GOOS=linux GOARCH=amd64 go build -o eventlogger
 
@@ -16,3 +19,4 @@ deploy: upload
 
 clean:
 	rm -f eventlogger bundle.zip
+	make -C test_push_kinesis clean
