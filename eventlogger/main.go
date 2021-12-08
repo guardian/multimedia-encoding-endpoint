@@ -73,6 +73,9 @@ func HandleIndividualRecord(ctx context.Context, evt events.KinesisEventRecord) 
 
 func doBatchWrite(ctx context.Context, ddbClient *dynamodb.DynamoDB, tableName string, incomingRequests []*dynamodb.WriteRequest, recordCount int) error {
 	var putRequests []*dynamodb.WriteRequest
+	if recordCount == 0 { //if there are no records to commit then just return. This case can happen if we error out on the last record of a batch.
+		return nil
+	}
 	if recordCount < len(incomingRequests) {
 		putRequests = incomingRequests[0:recordCount]
 	} else {
@@ -127,10 +130,10 @@ func HandleRequest(ctx context.Context, evt events.KinesisEvent) error {
 	log.Printf("INFO Writing %d records to dynamo", processedRecordCount)
 
 	//dynamodb only supports batches of up to 25 items
-	for i:=0; i<processedRecordCount; i+=25 {
+	for i := 0; i < processedRecordCount; i += 25 {
 		lastRecordToProcess := processedRecordCount
 		if i+25 < processedRecordCount {
-			lastRecordToProcess = i+25
+			lastRecordToProcess = i + 25
 		}
 		nextBatch := putRequests[i:lastRecordToProcess]
 		err := doBatchWrite(ctx, ddbClient, tableName, nextBatch, lastRecordToProcess-i)
