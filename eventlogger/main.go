@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"os"
+	"regexp"
 	"time"
 )
 
@@ -56,12 +57,17 @@ func (c *EndpointRequestContent) asWriteRequest() (*dynamodb.WriteRequest, error
 	}, nil
 }
 
+func FixNewlines(rawContent []byte) []byte {
+	fixer := regexp.MustCompile("\n")
+	return fixer.ReplaceAll(rawContent, []byte("\\n"))
+}
+
 func HandleIndividualRecord(ctx context.Context, evt events.KinesisEventRecord) (*dynamodb.WriteRequest, error) {
 	var content = &EndpointRequestContent{}
 
 	log.Printf("INFO Received Kinesis event with ID %s from %s in region %s", evt.EventID, evt.EventSourceArn, evt.AwsRegion)
 
-	unmarshalErr := json.Unmarshal(evt.Kinesis.Data, content)
+	unmarshalErr := json.Unmarshal(FixNewlines(evt.Kinesis.Data), content)
 	if unmarshalErr != nil {
 		log.Printf("ERROR Could not unmarshal event: %s. Raw content was %s", unmarshalErr, string(evt.Kinesis.Data))
 		return nil, unmarshalErr
