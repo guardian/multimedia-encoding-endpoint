@@ -19,6 +19,7 @@ import (
 type EndpointRequestContent struct {
 	AccessUrl     string   `json:"access_url"`
 	OutputMessage *string  `json:"output_message"`
+	Timestamp     *string  `json:"timestamp"`
 	ResponseCode  int      `json:"response_code"`
 	PhpHeaders    []string `json:"php_headers"`
 }
@@ -43,6 +44,17 @@ func (c *EndpointRequestContent) asWriteRequest() (*dynamodb.WriteRequest, error
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
+
+	if c.Timestamp == nil {
+		log.Print("INFO Record does not have a timestamp field, generating one now.")
+	} else {
+		_, timeParseErr := time.Parse(time.RFC3339, *c.Timestamp)
+		if timeParseErr == nil {
+			timestamp = *c.Timestamp
+		} else {
+			log.Printf("WARNING Could not parse provided timestamp '%s': %s", *c.Timestamp, timeParseErr)
+		}
+	}
 
 	return &dynamodb.WriteRequest{
 		PutRequest: &dynamodb.PutRequest{Item: map[string]*dynamodb.AttributeValue{
