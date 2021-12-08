@@ -16,7 +16,7 @@ header("Content-Type: text/plain");
 if(array_key_exists('poster',$_GET)){
 	if(array_key_exists('posterurl',$data)){
 		$output_message = $data['posterurl'];
-		write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":"'.$output_message.'", "response_code":200, "php_headers":'.json_encode(headers_list()).'}', $output_message);
+		write_to_kinesis($output_message, 200, headers_list());
 		exit;
 	} else {
 		$details = array(
@@ -34,14 +34,14 @@ if(array_key_exists('poster',$_GET)){
 		report_error($details);
 		header("HTTP/1.0 404 Poster Not Found");
 		$output_message = "No poster URL found";
-		write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":"'.$output_message.'", "response_code":404, "php_headers":'.json_encode(headers_list()).'}', $output_message);
+		write_to_kinesis($output_message, 404, headers_list());
 		exit;
 	}
 }
 
 if($data){
 	$output_message = $data['url'];
-	write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":"'.$output_message.'", "response_code":200, "php_headers":'.json_encode(headers_list()).'}', $output_message);
+	write_to_kinesis($output_message, 200, headers_list());
 	exit;
 }
 
@@ -60,6 +60,6 @@ $details = array(
 report_error($details);
 header("HTTP/1.0 404 Not Found");
 $output_message = "No content found.\n";
-write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":"'.$output_message.'", "response_code":404, "php_headers":'.json_encode(headers_list()).'}', $output_message);
+write_to_kinesis($output_message, 404, headers_list());
 
 ?>
