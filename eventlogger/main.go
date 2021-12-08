@@ -57,9 +57,11 @@ func (c *EndpointRequestContent) asWriteRequest() (*dynamodb.WriteRequest, error
 	}, nil
 }
 
-func FixNewlines(rawContent []byte) []byte {
+func FixUnescapedJson(rawContent []byte) []byte {
 	fixer := regexp.MustCompile("\n")
-	return fixer.ReplaceAll(rawContent, []byte("\\n"))
+	newlinesFixed := fixer.ReplaceAll(rawContent, []byte("\\n"))
+	tabFixer := regexp.MustCompile("\t")
+	return tabFixer.ReplaceAll(newlinesFixed, []byte("\\t"))
 }
 
 func HandleIndividualRecord(ctx context.Context, evt events.KinesisEventRecord) (*dynamodb.WriteRequest, error) {
@@ -67,7 +69,7 @@ func HandleIndividualRecord(ctx context.Context, evt events.KinesisEventRecord) 
 
 	log.Printf("INFO Received Kinesis event with ID %s from %s in region %s", evt.EventID, evt.EventSourceArn, evt.AwsRegion)
 
-	unmarshalErr := json.Unmarshal(FixNewlines(evt.Kinesis.Data), content)
+	unmarshalErr := json.Unmarshal(FixUnescapedJson(evt.Kinesis.Data), content)
 	if unmarshalErr != nil {
 		log.Printf("ERROR Could not unmarshal event: %s. Raw content was %s", unmarshalErr, string(evt.Kinesis.Data))
 		return nil, unmarshalErr
