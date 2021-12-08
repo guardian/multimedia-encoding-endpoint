@@ -107,7 +107,7 @@ function find_content($config){
 			);
 		report_error($details);
     header('HTTP/1.0 500 Server Config Error',true,500);
-    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
+    write_to_kinesis(null, 500, headers_list());
 		throw new ContentErrorException("No config file available");
 	}
 
@@ -176,7 +176,7 @@ function find_content($config){
 			);
 			report_error($details);
       header('HTTP/1.0 500 Bad Request Bad Request',true,500);
-      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
+      write_to_kinesis(null, 500, headers_list());
 			throw new ContentErrorException("Not able to connect to any database servers");;
 		}
 	}
@@ -197,7 +197,7 @@ function find_content($config){
 			);
 			report_error($details);
       header('HTTP/1.0 400 Bad Request',true,400);
-      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":400, "php_headers":'.json_encode(headers_list()).'}', null);
+      write_to_kinesis(null, 400, headers_list());
 			throw new ContentErrorException("Invalid filespec");
 		}
 		$fn=mysqli_real_escape_string($dbh, $fn);
@@ -221,7 +221,7 @@ function find_content($config){
 					);
 					report_error($details);
       header('HTTP/1.0 400 Bad Request',true,400);
-      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":400, "php_headers":'.json_encode(headers_list()).'}', null);
+      write_to_kinesis(null, 400, headers_list());
 			throw new ContentErrorException("Invalid octid");
 		}
 		$q="select * from idmapping where octopus_id=$octid order by lastupdate desc limit 1";
@@ -242,7 +242,7 @@ function find_content($config){
 			);
 			report_error($details);
     header('HTTP/1.0 404 Not Found',true,404);
-    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":404, "php_headers":'.json_encode(headers_list()).'}', null);
+    write_to_kinesis(null, 404, headers_list());
 	}
 
 	if(! $contentid or $contentid==""){
@@ -261,7 +261,7 @@ function find_content($config){
 		);
 		report_error($details);
     header('HTTP/1.0 404 Not Found',true,404);
-    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":404, "php_headers":'.json_encode(headers_list()).'}', null);
+    write_to_kinesis(null, 404, headers_list());
 		throw new ContentErrorException("Octopus ID or filename not found");
 	}
 	#Step 1.
@@ -287,7 +287,7 @@ function find_content($config){
 		);
 		report_error($details);
     header("HTTP/1.0 500 Database query error");
-    write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
+    write_to_kinesis(null, 500, headers_list());
 		throw new ContentErrorException("No content from database");
 	}
 	$fcsid=NULL;
@@ -321,7 +321,7 @@ function find_content($config){
 			report_error($details);
       header("HTTP/1.0 500 Database query error");
       $output_message = "unable to run query $q";
-      write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', $output_message);
+      write_to_kinesis($output_message, 500, headers_list());
 			throw new ContentErrorException("No encodings found for given title id");
 		}
 	#	die("testing");
@@ -352,7 +352,7 @@ function find_content($config){
 					);
 					report_error($details);
           header("HTTP/1.0 500 Database query error");
-          write_to_kinesis($GLOBALS['kinesis_stream_name'], '{"access_url":"'.$GLOBALS['actual_link'].'", "output_message":null, "response_code":500, "php_headers":'.json_encode(headers_list()).'}', null);
+          write_to_kinesis(null, 500, headers_list());
 					throw new ContentErrorException("No encodings found in fallback mode");
 
 			}
@@ -473,11 +473,21 @@ function output_supplementary_headers()
 header("Access-Control-Allow-Origin: *");
 }
 
-function write_to_kinesis($name, $content, $output_message){
+function write_to_kinesis($output_message, $response_code, $php_headers){
 
   if ($output_message) {
     print $output_message;
   }
+
+  $unproccessed_content = [
+    "timestamp" => date('Y-m-d\Th:i:s\Z', time()),
+    "access_url" => $GLOBALS['actual_link'],
+    "output_message" => $output_message,
+    "response_code" => $response_code,
+    "php_headers" => $php_headers
+  ];
+
+  $content = json_encode($unproccessed_content);
 
   $kinesisClient = new Aws\Kinesis\KinesisClient([
       'version' => '2013-12-02',
@@ -488,7 +498,7 @@ function write_to_kinesis($name, $content, $output_message){
   try {
       $result = $kinesisClient->PutRecord([
           'Data' => $content,
-          'StreamName' => $name,
+          'StreamName' => $GLOBALS['kinesis_stream_name'],
           'PartitionKey' => md5($content)
       ]);
   } catch (AwsException $e) {
