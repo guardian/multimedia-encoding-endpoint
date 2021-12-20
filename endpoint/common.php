@@ -495,7 +495,7 @@ function write_to_kinesis($output_message, $response_code, $php_headers){
       'scheme' => 'https'
   ]);
 
-  try {
+  /*try {
       $result = $kinesisClient->PutRecord([
           'Data' => $content,
           'StreamName' => $GLOBALS['kinesis_stream_name'],
@@ -504,7 +504,7 @@ function write_to_kinesis($output_message, $response_code, $php_headers){
   } catch (AwsException $e) {
       echo $e->getMessage();
       echo "\n";
-  }
+  }*/
 }
 
 ?>
