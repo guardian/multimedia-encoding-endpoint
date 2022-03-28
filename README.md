@@ -1,5 +1,7 @@
 # Multimedia endcodings referencing endpoint
 
+**THIS IS NOW DEPRECATED**
+
 ## Source code
 
 See `endpoint/`. You'll need php 7.x set up to run it; dependencies are managed via php Composer (see https://getcomposer.org)
